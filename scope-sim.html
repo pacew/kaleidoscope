@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tapered kaleidoscope simulator</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+         background: #f4f2ee; color: #1c1a17; display: flex; height: 100vh; overflow: hidden; }
+  #view { flex: 1; position: relative; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  #panel { width: 320px; padding: 14px 16px; overflow-y: auto; background: #fbfaf8;
+           border-left: 1px solid #ddd8d0; }
+  h1 { font-size: 14px; margin: 0 0 2px; letter-spacing: .01em; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7a7268;
+       margin: 18px 0 8px; border-bottom: 1px solid #e6e1d9; padding-bottom: 4px; }
+  .sub { color: #7a7268; margin: 0 0 4px; }
+  label { display: block; margin: 9px 0 2px; font-size: 12px; }
+  label .v { float: right; color: #7a7268; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin: 0; }
+  select, button { font: inherit; width: 100%; padding: 5px 7px; margin-top: 4px;
+                   border: 1px solid #ccc6bc; border-radius: 5px; background: #fff; }
+  button { cursor: pointer; }
+  button:hover { background: #f0ece5; }
+  #stats { font-variant-numeric: tabular-nums; }
+  #stats table { width: 100%; border-collapse: collapse; }
+  #stats td { padding: 2px 0; vertical-align: top; }
+  #stats td:first-child { color: #7a7268; padding-right: 8px; }
+  #stats td:last-child { text-align: right; }
+  #warn { margin-top: 10px; padding: 8px 10px; border-radius: 5px; display: none;
+          background: #fdf0e3; border: 1px solid #e8c9a0; color: #6b4a1c; }
+  .hint { color: #8a8278; font-size: 11px; margin-top: 8px; }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="view"><canvas id="cv"></canvas></div>
+
+<div id="panel">
+  <h1>Tapered kaleidoscope</h1>
+  <p class="sub">Three mirror planes through a common apex. Drag the view to look around;
+     scroll to zoom.</p>
+
+  <h2>Preset</h2>
+  <select id="preset">
+    <option value="60.0574,60.0574,60.0574">Your scope — 2″→1″ over 12″</option>
+    <option value="60.02,60.02,60.02">Barely tapered (enormous sphere)</option>
+    <option value="62,62,62">Coarse equilateral</option>
+    <option value="70,70,70">Very coarse equilateral</option>
+    <option value="90,60,60">Tetrahedral (2,3,3) — 24 facets, exact</option>
+    <option value="90,60,45">Octahedral (2,3,4) — 48 facets, exact</option>
+    <option value="90,60,36">Icosahedral (2,3,5) — 120 facets, exact</option>
+    <option value="90,45,45">(2,4,4) — degenerate, flat</option>
+  </select>
+
+  <h2>Mirror angles</h2>
+  <label>Mirror 1 ↔ 2 <span class="v" id="vA"></span></label>
+  <input type="range" id="a12" min="30" max="120" step="0.0001">
+  <label>Mirror 1 ↔ 3 <span class="v" id="vB"></span></label>
+  <input type="range" id="a13" min="30" max="120" step="0.0001">
+  <label>Mirror 2 ↔ 3 <span class="v" id="vC"></span></label>
+  <input type="range" id="a23" min="30" max="120" step="0.0001">
+  <button id="lock">Lock all three together</button>
+
+  <h2>Tube</h2>
+  <label>Wide end / narrow end <span class="v" id="vR"></span></label>
+  <input type="range" id="ratio" min="1.05" max="6" step="0.01">
+  <label>Field of view <span class="v" id="vF"></span></label>
+  <input type="range" id="fov" min="10" max="140" step="0.5">
+  <label>Mirror reflectance <span class="v" id="vRf"></span></label>
+  <input type="range" id="refl" min="0.70" max="1.00" step="0.005">
+  <label>Max bounces <span class="v" id="vB2"></span></label>
+  <input type="range" id="maxb" min="8" max="512" step="1">
+
+  <h2>Object chamber</h2>
+  <select id="mode">
+    <option value="0">Glass shards</option>
+    <option value="1">Cell edges only</option>
+    <option value="2">Bounce count (heat map)</option>
+  </select>
+  <label>Shard count <span class="v" id="vN"></span></label>
+  <input type="range" id="nsh" min="4" max="64" step="1">
+  <label>Shard size <span class="v" id="vS"></span></label>
+  <input type="range" id="ssc" min="0.15" max="2.5" step="0.01">
+  <div class="row">
+    <button id="reseed">New shards</button>
+    <button id="edges">Edges: on</button>
+  </div>
+  <label>Exposure <span class="v" id="vE"></span></label>
+  <input type="range" id="expo" min="0.5" max="12" step="0.1">
+
+  <h2>Derived</h2>
+  <div id="stats"></div>
+  <div id="warn"></div>
+
+  <h2>Build numbers</h2>
+  <label>Tube length along axis (mm) <span class="v" id="vL"></span></label>
+  <input type="range" id="tlen" min="50" max="800" step="1">
+  <div id="build"></div>
+
+  <p class="hint">Cross-section sides are the mirror-face widths — what you cut the acrylic to.
+     Rendering is exact: the only approximation is that mirrors are perfectly flat.</p>
+</div>
+
+<script>
+"use strict";
+
+/* ───────────────────────── geometry ─────────────────────────
+   Three planes through the origin (the apex). A plane's inward
+   normal n_i points into the tube. For two half-spaces meeting at
+   interior dihedral angle t, the inward normals satisfy
+        n_i · n_j = -cos(t)
+   so the Gram matrix of the normals is fixed by the three angles,
+   and Cholesky recovers the normals themselves. The matrix is
+   positive definite exactly when the images close onto a sphere;
+   a zero pivot is the Euclidean case (parallel mirrors, flat
+   tiling) and a negative one is hyperbolic (no coherent image).
+   ────────────────────────────────────────────────────────────── */
+
+function buildNormals(t12, t13, t23) {
+  const g12 = -Math.cos(t12), g13 = -Math.cos(t13), g23 = -Math.cos(t23);
+  const a = g12, b2 = 1 - a * a;
+  if (b2 <= 1e-12) return null;
+  const b = Math.sqrt(b2);
+  const c = g13, d = (g23 - a * c) / b;
+  const e2 = 1 - c * c - d * d;
+  if (e2 <= 1e-9) return { degenerate: true, e2: e2 };
+  return { n: [[1, 0, 0], [a, b, 0], [c, d, Math.sqrt(e2)]], e2: e2 };
+}
+
+const dot = (p, q) => p[0]*q[0] + p[1]*q[1] + p[2]*q[2];
+const cross = (p, q) => [p[1]*q[2]-p[2]*q[1], p[2]*q[0]-p[0]*q[2], p[0]*q[1]-p[1]*q[0]];
+const scale = (p, s) => [p[0]*s, p[1]*s, p[2]*s];
+const sub = (p, q) => [p[0]-q[0], p[1]-q[1], p[2]-q[2]];
+const len = p => Math.sqrt(dot(p, p));
+const norm = p => scale(p, 1 / len(p));
+
+// Solve N v = rhs by Cramer's rule.
+function solve3(N, r) {
+  const [a,b,c] = N[0], [d,e,f] = N[1], [g,h,i] = N[2];
+  const det = a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g);
+  return [
+    ( r[0]*(e*i-f*h) - b*(r[1]*i-f*r[2]) + c*(r[1]*h-e*r[2]) ) / det,
+    ( a*(r[1]*i-f*r[2]) - r[0]*(d*i-f*g) + c*(d*r[2]-r[1]*g) ) / det,
+    ( a*(e*r[2]-r[1]*h) - b*(d*r[2]-r[1]*g) + r[0]*(d*h-e*g) ) / det
+  ];
+}
+
+// The tube axis: the direction equidistant in angle from all three
+// mirrors, i.e. the incenter of the spherical triangle.
+function tubeAxis(n) { return norm(solve3(n, [1, 1, 1])); }
+
+// Corner ray where mirrors i and j meet, at axial distance s.
+function cornerAt(n, axis, i, j, s) {
+  let e = cross(n[i], n[j]);
+  if (dot(e, axis) < 0) e = scale(e, -1);
+  return scale(e, s / dot(axis, e));
+}
+
+/* ───────────────────────── shader ───────────────────────── */
+
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+
+const FS = `#version 300 es
+precision highp float;
+out vec4 fragColor;
+
+uniform vec2  uRes;
+uniform vec3  uN0, uN1, uN2;
+uniform vec3  uAxis, uCamU, uCamV, uCamW;
+uniform vec3  uCU, uCV;              // 2-D basis on the chamber plane
+uniform float uD1, uD2;              // apex→chamber, apex→eye
+uniform float uRho;                  // apex→chamber perpendicular mirror distance
+uniform float uFov, uRefl, uSeed, uShardScale, uEdgeW, uExposure, uEps;
+uniform int   uMaxB, uNShards, uMode, uShowEdges;
+
+vec3 hash3(float n) {
+  return fract(sin(vec3(n, n + 13.71, n + 37.33)) *
+               vec3(43758.5453, 22578.1459, 19642.3491));
+}
+
+vec3 hsv2rgb(vec3 c) {
+  vec3 k = abs(fract(c.xxx + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0);
+  return c.z * mix(vec3(1.0), clamp(k - 1.0, 0.0, 1.0), c.y);
+}
+
+// Colour of the object chamber at a point on its plane. Coordinates are
+// scaled by the cross-section inradius, so the fundamental triangle has
+// inradius 1 and the shard field is independent of tube scale.
+vec3 chamber(vec3 P) {
+  float e = min(min(dot(uN0, P), dot(uN1, P)), dot(uN2, P)) / uRho;
+
+  if (uMode == 1) {                                  // cell edges only
+    return vec3(smoothstep(0.0, uEdgeW, e));
+  }
+
+  vec2 q = vec2(dot(P, uCU), dot(P, uCV)) / uRho;
+  vec3 c = vec3(1.0);                                // backlight
+
+  for (int i = 0; i < 64; ++i) {
+    if (i >= uNShards) break;
+    vec3 h  = hash3(float(i) * 7.13 + uSeed * 31.7);
+    vec3 h2 = hash3(float(i) * 3.71 + uSeed * 11.3 + 5.0);
+    vec2 ctr = (h.xy - 0.5) * 2.8 * uShardScale;
+    float ang = h.z * 6.2831853;
+    float rad = uShardScale * (0.10 + 0.28 * h2.x);
+    float ca = cos(ang), sa = sin(ang);
+    vec2 r = mat2(ca, sa, -sa, ca) * (q - ctr);
+    float d = max(abs(r.x) * (0.55 + 0.9 * h2.y), abs(r.y)) - rad;
+    if (d < 0.0) {
+      c *= mix(vec3(1.0), hsv2rgb(vec3(h2.z, 0.88, 1.0)), 0.72);
+    } else if (d < 0.035 * uShardScale) {
+      c *= 0.30;                                     // shard rim
+    }
+  }
+
+  if (uShowEdges == 1) c *= smoothstep(0.0, uEdgeW, e);
+  return c;
+}
+
+// black → red → yellow → white; sqrt expands the low end, where most rays live
+vec3 heat(float t) {
+  t = sqrt(clamp(t, 0.0, 1.0));
+  return clamp(vec3(3.0 * t, 3.0 * t - 1.0, 3.0 * t - 2.0), 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+  vec3 d = normalize(uCamW / tan(0.5 * uFov) + uCamU * uv.x + uCamV * uv.y);
+  vec3 P = uAxis * uD2;
+
+  vec3 atten = vec3(1.0);
+  vec3 col   = vec3(0.0);
+  int  b     = 0;
+
+  for (int step = 0; step < 512; ++step) {
+    if (step >= uMaxB) break;
+
+    float tBest = 1e30; int hit = -1;
+
+    float f0 = dot(uN0, P), g0 = dot(uN0, d);
+    if (g0 < -1e-9) { float t = -f0 / g0; if (t > uEps && t < tBest) { tBest = t; hit = 0; } }
+    float f1 = dot(uN1, P), g1 = dot(uN1, d);
+    if (g1 < -1e-9) { float t = -f1 / g1; if (t > uEps && t < tBest) { tBest = t; hit = 1; } }
+    float f2 = dot(uN2, P), g2 = dot(uN2, d);
+    if (g2 < -1e-9) { float t = -f2 / g2; if (t > uEps && t < tBest) { tBest = t; hit = 2; } }
+
+    float ad = dot(uAxis, d);
+    if (ad < -1e-9) {                                 // heading for the chamber
+      float t = (uD1 - dot(uAxis, P)) / ad;
+      if (t > uEps && t < tBest) { tBest = t; hit = 3; }
+    } else if (ad > 1e-9) {                           // heading back out the eye end
+      float t = (uD2 - dot(uAxis, P)) / ad;
+      if (t > uEps && t < tBest) { tBest = t; hit = 4; }
+    }
+
+    if (hit < 0) break;
+    P += tBest * d;
+
+    if (hit == 3) {                                   // reached the glass
+      col = (uMode == 2) ? heat(float(b) / float(uMaxB)) : atten * chamber(P);
+      break;
+    }
+    if (hit == 4) {                                   // escaped past the eye
+      col = (uMode == 2) ? vec3(0.06) : atten * vec3(0.015);
+      break;
+    }
+
+    vec3 n = (hit == 0) ? uN0 : (hit == 1) ? uN1 : uN2;
+    d = d - 2.0 * dot(d, n) * n;
+    P += uEps * n;                                    // lift back inside the cone
+    atten *= uRefl;
+    b += 1;
+  }
+
+  float ex = (uMode == 2) ? 1.0 : uExposure;        // heat map is a diagnostic, not an image
+  fragColor = vec4(pow(max(col * ex, 0.0), vec3(1.0 / 2.2)), 1.0);
+}`;
+
+/* ───────────────────────── plumbing ───────────────────────── */
+
+const cv = document.getElementById("cv");
+const gl = cv.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true });
+if (!gl) { document.body.innerHTML = "<p style='padding:20px'>This page needs WebGL2.</p>"; }
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "p");
+gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+for (const k of ["uRes","uN0","uN1","uN2","uAxis","uCamU","uCamV","uCamW","uCU","uCV",
+                 "uD1","uD2","uRho","uFov","uRefl","uSeed","uShardScale","uEdgeW",
+                 "uExposure","uEps","uMaxB","uNShards","uMode","uShowEdges"])
+  U[k] = gl.getUniformLocation(prog, k);
+
+const el = id => document.getElementById(id);
+const S = {
+  a12: el("a12"), a13: el("a13"), a23: el("a23"), ratio: el("ratio"), fov: el("fov"),
+  refl: el("refl"), maxb: el("maxb"), nsh: el("nsh"), ssc: el("ssc"), expo: el("expo"),
+  tlen: el("tlen"), mode: el("mode"), preset: el("preset")
+};
+
+let seed = 3.7, showEdges = 1, locked = true, yaw = 0, pitch = 0;
+
+function setPreset(str) {
+  const [a, b, c] = str.split(",").map(Number);
+  S.a12.value = a; S.a13.value = b; S.a23.value = c;
+  locked = (a === b && b === c);
+  el("lock").textContent = locked ? "Unlock the three angles" : "Lock all three together";
+  render();
+}
+
+S.preset.onchange = () => setPreset(S.preset.value);
+el("lock").onclick = () => {
+  locked = !locked;
+  el("lock").textContent = locked ? "Unlock the three angles" : "Lock all three together";
+  if (locked) { S.a13.value = S.a12.value; S.a23.value = S.a12.value; }
+  render();
+};
+el("reseed").onclick = () => { seed = Math.random() * 100; render(); };
+el("edges").onclick = () => {
+  showEdges ^= 1;
+  el("edges").textContent = "Edges: " + (showEdges ? "on" : "off");
+  render();
+};
+for (const k of ["a12","a13","a23","ratio","fov","refl","maxb","nsh","ssc","expo","tlen","mode"])
+  S[k].oninput = () => {
+    if (locked && (k === "a12" || k === "a13" || k === "a23")) {
+      S.a12.value = S[k].value; S.a13.value = S[k].value; S.a23.value = S[k].value;
+    }
+    render();
+  };
+
+// Drag to look around, wheel to zoom.
+let dragging = false, lx = 0, ly = 0;
+cv.addEventListener("pointerdown", e => { dragging = true; lx = e.clientX; ly = e.clientY;
+                                          cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointerup",   e => { dragging = false; });
+cv.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  yaw   += (e.clientX - lx) * 0.0016;
+  pitch += (e.clientY - ly) * 0.0016;
+  yaw = Math.max(-0.9, Math.min(0.9, yaw));
+  pitch = Math.max(-0.9, Math.min(0.9, pitch));
+  lx = e.clientX; ly = e.clientY;
+  render();
+});
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  S.fov.value = Math.max(10, Math.min(140, +S.fov.value * (1 + e.deltaY * 0.001)));
+  render();
+}, { passive: false });
+
+const fmt = (x, n = 2) => x.toFixed(n);
+
+function render() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  gl.viewport(0, 0, w, h);
+
+  const t12 = +S.a12.value, t13 = +S.a13.value, t23 = +S.a23.value;
+  el("vA").textContent = fmt(t12, 4) + "°";
+  el("vB").textContent = fmt(t13, 4) + "°";
+  el("vC").textContent = fmt(t23, 4) + "°";
+
+  const R = Math.PI / 180;
+  const res = buildNormals(t12 * R, t13 * R, t23 * R);
+  const warn = el("warn");
+
+  if (!res || res.degenerate) {
+    warn.style.display = "block";
+    const sum = t12 + t13 + t23;
+    warn.textContent = sum <= 180.0001
+      ? "Angle sum is " + fmt(sum, 4) + "° ≤ 180°. The mirrors no longer converge on an "
+        + "apex — the images tile a flat plane (or diverge). There is no sphere to render."
+      : "Degenerate configuration.";
+    gl.clearColor(0.04, 0.04, 0.05, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    el("stats").innerHTML = ""; el("build").innerHTML = "";
+    return;
+  }
+  warn.style.display = "none";
+
+  const n = res.n;
+  const axis = tubeAxis(n);
+  const sinDelta = dot(n[0], axis);              // same for all three by construction
+  const delta = Math.asin(Math.max(-1, Math.min(1, sinDelta)));
+
+  const d1 = 1.0, d2 = +S.ratio.value;
+  const rho = d1 * sinDelta;
+
+  // Orthonormal basis on the chamber plane.
+  const ref = Math.abs(axis[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+  const cu = norm(cross(axis, ref)), cvv = cross(axis, cu);
+
+  // Camera: down the axis toward the chamber, tilted by the drag.
+  const w0 = scale(axis, -1);
+  const cw = norm([w0[0] + yaw * cu[0] + pitch * cvv[0],
+                   w0[1] + yaw * cu[1] + pitch * cvv[1],
+                   w0[2] + yaw * cu[2] + pitch * cvv[2]]);
+  const cuu = norm(cross(cw, cvv));                 // right
+  const cvw = cross(cw, cuu);                       // up; keeps the basis right-handed
+
+  gl.uniform2f(U.uRes, w, h);
+  gl.uniform3fv(U.uN0, n[0]); gl.uniform3fv(U.uN1, n[1]); gl.uniform3fv(U.uN2, n[2]);
+  gl.uniform3fv(U.uAxis, axis);
+  gl.uniform3fv(U.uCamU, cuu); gl.uniform3fv(U.uCamV, cvw); gl.uniform3fv(U.uCamW, cw);
+  gl.uniform3fv(U.uCU, cu);    gl.uniform3fv(U.uCV, cvv);
+  gl.uniform1f(U.uD1, d1);     gl.uniform1f(U.uD2, d2);
+  gl.uniform1f(U.uRho, rho);
+  gl.uniform1f(U.uFov, +S.fov.value * R);
+  gl.uniform1f(U.uRefl, +S.refl.value);
+  gl.uniform1f(U.uSeed, seed);
+  gl.uniform1f(U.uShardScale, +S.ssc.value);
+  gl.uniform1f(U.uEdgeW, 0.05);
+  gl.uniform1f(U.uExposure, +S.expo.value);
+  gl.uniform1f(U.uEps, 1e-4 * rho);
+  gl.uniform1i(U.uMaxB, +S.maxb.value);
+  gl.uniform1i(U.uNShards, +S.nsh.value);
+  gl.uniform1i(U.uMode, +S.mode.value);
+  gl.uniform1i(U.uShowEdges, showEdges);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* readouts */
+  el("vR").textContent  = fmt(d2, 2) + "×";
+  el("vF").textContent  = fmt(+S.fov.value, 0) + "°";
+  el("vRf").textContent = fmt(+S.refl.value * 100, 1) + "%";
+  el("vB2").textContent = S.maxb.value;
+  el("vN").textContent  = S.nsh.value;
+  el("vS").textContent  = fmt(+S.ssc.value, 2);
+  el("vE").textContent  = fmt(+S.expo.value, 1);
+  el("vL").textContent  = S.tlen.value + " mm";
+
+  const excess = (t12 + t13 + t23 - 180) * R;
+  const facets = 4 * Math.PI / excess;
+  const closes = [t12, t13, t23].every(t => {
+    const p = 180 / t; return Math.abs(p - Math.round(p)) < 2e-3 && Math.round(p) >= 2;
+  });
+  const usefulB = Math.log(0.01) / Math.log(Math.min(0.99999, +S.refl.value));
+
+  el("stats").innerHTML = `<table>
+    <tr><td>Taper half-angle</td><td>${fmt(delta / R, 4)}°</td></tr>
+    <tr><td>Sphere seen at</td><td>${fmt(2 * Math.asin(Math.min(1, d1 / d2)) / R, 1)}° wide</td></tr>
+    <tr><td>Fundamental triangles</td><td>${facets < 1e6 ? Math.round(facets).toLocaleString() : "—"}</td></tr>
+    <tr><td>Tiling closes exactly</td><td>${closes ? "yes" : "no — seam"}</td></tr>
+    <tr><td>Bounces to 1% light</td><td>${isFinite(usefulB) ? Math.round(usefulB) : "∞"}</td></tr>
+  </table>`;
+
+  // Cross-section triangles at both ends, scaled to the requested tube length.
+  const L = +S.tlen.value;
+  const s1 = L / (d2 - d1), s2 = s1 * d2;
+  const sides = s => {
+    const c01 = cornerAt(n, axis, 0, 1, s),
+          c02 = cornerAt(n, axis, 0, 2, s),
+          c12 = cornerAt(n, axis, 1, 2, s);
+    return [len(sub(c01, c02)), len(sub(c01, c12)), len(sub(c02, c12))];
+  };
+  const A = sides(s1), B = sides(s2);
+  el("build").innerHTML = `<table>
+    <tr><td>Apex → narrow end</td><td>${fmt(s1, 1)} mm</td></tr>
+    <tr><td>Narrow-end sides</td><td>${A.map(x => fmt(x, 2)).join(" / ")}</td></tr>
+    <tr><td>Wide-end sides</td><td>${B.map(x => fmt(x, 2)).join(" / ")}</td></tr>
+  </table>`;
+}
+
+/* defaults */
+S.ratio.value = 2; S.fov.value = 75; S.refl.value = 0.93; S.maxb.value = 160;
+S.nsh.value = 26;  S.ssc.value = 0.75; S.expo.value = 3.0; S.tlen.value = 305;
+setPreset(S.preset.value);
+new ResizeObserver(render).observe(cv);
+</script>
+</body>
+</html>

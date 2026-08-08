@@ -1,0 +1,201 @@
+% Build instructions for the 100 mm kaleidoscope prototype.
+\documentclass[letterpaper,11pt]{article}
+\usepackage[letterpaper,top=20mm,bottom=20mm,left=22mm,right=22mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta}
+
+\definecolor{reg}{gray}{0.45}
+\definecolor{mir}{rgb}{0.15,0.40,0.65}
+
+\setlist[enumerate]{itemsep=2pt,topsep=4pt}
+\setlist[itemize]{itemsep=2pt,topsep=4pt}
+
+\newcommand{\head}[1]{\vspace{3mm}\textbf{\large #1}\vspace{1mm}\hrule\vspace{2mm}}
+
+% ── one rail's cross-section at the narrow end, in mm about the tube axis ──
+\newcommand{\railpath}{%
+  (-13.700,-9.1325) -- (15.818,-9.1325) -- (14.759,-7.2985) --
+  (15.538,-6.8485) -- (15.138,-6.1557) -- (16.177,-5.5557) --
+  (16.577,-6.2485) -- (17.357,-5.7985) -- (21.014,-12.1325) --
+  (-13.700,-12.1325) -- (-13.700,-11.3825) -- (-12.750,-11.3825) --
+  (-12.750,-9.8825) -- (-13.700,-9.8825) -- cycle}
+\newcommand{\mirrorpath}{(-12.7,-7.33249) rectangle (12.7,-8.93249)}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries Tapered kaleidoscope --- 100\,mm prototype}\\[2mm]
+  {\large Cutting and assembly}
+\end{center}
+
+\vspace{2mm}
+
+Three identical printed rails, each carrying one flat trapezoidal mirror, lapped together
+at the corners into a truncated triangular pyramid. Because the three mirror planes
+converge on a common apex 100\,mm beyond the narrow end, the images tile a \emph{sphere}
+rather than the flat honeycomb an untapered scope produces. You look in the wide end; the
+glass chips go at the narrow end.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Mirror-face triangle & 25.40\,mm at the narrow end, 50.80\,mm at the wide end \\
+Length along the axis & 100\,mm \\
+Taper half-angle & 4.1936$^\circ$ \\
+Corner dihedral & 60.529286$^\circ$ \emph{(not 60 --- the excess is the whole effect)} \\
+Image & a sphere subtending 60$^\circ$, about 453 facets \\
+Mirror blank & trapezoid, parallel edges 25.40 and 50.80, height 100.27, legs 101.07\,mm \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\head{1. Print the rails}
+
+Three copies of the same part --- there is no left or right hand. About 1.5 hours each.
+
+The model already sits with its outside face on the XY plane, so it needs no support and
+the exterior comes off the bed smooth. That does make the mirror pocket floor a
+\emph{top} surface, so \textbf{turn on ironing for top surfaces}. With thin floppy mirror
+stock the mirror conforms to whatever that floor does, and print texture becomes optical
+texture. With rigid mirror it does not matter.
+
+\head{2. About the mirror stock}
+
+The cheap ``unbreakable'' tiles are plastic, not glass, so ignore anything you read about
+glass cutters and running pliers. Two honest warnings:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{They are sold for safety, not optics, and are usually noticeably wavy.}
+      Flatness is the single most important optical property of a kaleidoscope mirror, so
+      expect a soft, smeary image with visible distortion in the outer facets. Do not judge
+      the design by what these produce --- judge the fit, the corners and the workflow.
+\item \textbf{Measure the thickness before printing} and set the feature's
+      \texttt{mirrorThickness} to match. The default is 1.6\,mm. If the pocket is wrong the
+      corners will not close.
+\end{itemize}
+
+\head{3. Cutting the mirrors}
+
+\textbf{Do not use the rotary cutters.} They are built to shear fabric against a mat, not
+to score rigid plastic. The blades are thin and hardened and will chip on the first pass,
+and they cost more than the tiles. (If the sheet turns out to be under about half a
+millimetre and genuinely floppy, a rotary cutter will work --- test on a scrap corner.)
+The utility knife and the sewing ruler are the right pair; the ruler's printed grid is
+better for this than a plain straightedge.
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Check the template.} Print \texttt{mirror-template.pdf} at 100\,\% ---
+      \emph{Actual size}, not \emph{Fit to page} --- and verify both rulers on it with a
+      real ruler. If they are off, every dimension is off.
+\item \textbf{Leave the protective film on} and mark on it. It prevents scratches and the
+      blade tracks better.
+\item \textbf{Transfer the marks.} Tape the template over the tile, prick through the
+      centre of all twelve circled marks with a pin, lift the paper, and join the pricks
+      with the straightedge. Marking through paper beats cutting through it --- a knife
+      shreds paper and then wanders.
+\item \textbf{Score.} Put the ruler on the side you are keeping, so a slip runs into the
+      waste. Hold it down hard; more failures here come from the ruler creeping than from
+      the knife wandering. Draw the knife along the line six to ten times with moderate,
+      consistent pressure, same track each time, aiming to get about halfway through. Do
+      not try to power through in one pass.
+\item \textbf{Snap --- or don't.} Score up, overhang past a table edge, hold the tile flat,
+      press down sharply and evenly. Thin plastic often \emph{bends instead of breaking};
+      unlike glass it has no clean cleavage. If it flexes rather than snapping, stop and
+      keep scoring until you are through. Slower, but far more reliable, and on 100\,mm
+      pieces it is only a couple of minutes.
+\item \textbf{Finish the two long edges.} Lay 400-grit flat on the table, hold the piece
+      vertical, two or three light passes per edge. Keep it square --- do not round it
+      over, and do not sand onto the reflective face.
+\item \textbf{Check the coating.} Hold each long edge up to the light. The silver must run
+      right to the edge; any dead band there prints as a dark web across every facet.
+\end{enumerate}
+
+\textbf{Only two of the four edges matter.} The slanted 101.07\,mm sides butt against the
+neighbouring mirrors. The 25.40 and 50.80\,mm ends are hidden under the end caps and can be
+rough. Cut on the line --- these outlines are finished size and a scored edge removes
+essentially nothing.
+
+\head{4. Where the mirror sits}
+
+\begin{center}
+\begin{tikzpicture}[x=2.4mm,y=2.4mm,line width=0.28mm]
+  \foreach \a in {0,120,240} {
+    \begin{scope}[rotate=\a]
+      \fill[black!8] \railpath;
+      \draw[black!55] \railpath;
+      \fill[mir!25] \mirrorpath;
+      \draw[mir,line width=0.45mm] (-12.7,-7.33249) -- (12.7,-7.33249);
+      \draw[mir!70,line width=0.2mm] \mirrorpath;
+    \end{scope}
+  }
+  % callouts
+  \draw[reg,line width=0.15mm] (-13.7,-10.6) -- (-24,-16)
+        node[below left,font=\scriptsize,align=right,inner sep=1pt]
+        {split face\\(mirror edge sits\\1.0\,mm in from it)};
+  \draw[reg,line width=0.15mm] (16.5,-6.0) -- (26,-2)
+        node[right,font=\scriptsize,align=left,inner sep=1pt]
+        {tongue, into the\\next rail's groove};
+  \draw[reg,line width=0.15mm] (14.2,-8.4) -- (24,-11)
+        node[right,font=\scriptsize,align=left,inner sep=1pt]
+        {3.12\,mm of floor left\\bare for the neighbour's\\mirror to land on};
+  \draw[reg,line width=0.15mm] (0,-7.9) -- (-6,-19)
+        node[below,font=\scriptsize,align=center,inner sep=1pt]
+        {reflective face --- these three\\lines are the optical triangle};
+  \node[font=\scriptsize\itshape,reg] at (0,27.5) {narrow-end cross-section, 2.4:1};
+\end{tikzpicture}
+\end{center}
+
+The pocket floor is deliberately wider than the mirror, and asymmetrically so. On the
+split-plane side it runs past the mirror edge by exactly 1.0\,mm; on the corner-block side
+it runs past by 3.12\,mm, and that band is where the \emph{neighbouring} mirror's body and
+bond layer land.
+
+So the rule is simply: \textbf{set each mirror's edge 1.0\,mm in from the flat split face},
+ends flush with the rail ends. The other side takes care of itself.
+
+Handedness sorts itself out. All three rails are identical, so if you bond each mirror the
+same way onto its own rail, the pinwheel comes out right automatically. There is no way to
+get one mirror backwards without noticing.
+
+\head{5. Dry-assemble before you glue anything}
+
+Mirrors sitting loose in the pockets, three rails pressed together, masking tape around the
+outside. Look through it. Thirty seconds of feedback on whether the corners close and the
+pattern coheres, with nothing committed.
+
+What to look for:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Do the tongues seat in the grooves} and the three rails close into a triangle
+      without a gap at the last joint?
+\item \textbf{Do the mirror edges meet at the vertices} without overlapping or leaving a
+      visible gap? A dark line at every cell boundary means the mirrors are a touch narrow
+      or the coating has pulled back from the edge.
+\item \textbf{Is there a sphere?} It should read as a ball floating at the far end, about
+      60$^\circ$ across, not as a flat honeycomb. If it looks flat, something is wrong with
+      the taper, not with your cutting.
+\end{itemize}
+
+\head{6. Bond and close up}
+
+Thin double-sided tape or a few dots of clear silicone. The model assumes a 0.2\,mm bond
+layer, so measure your tape and set \texttt{bondGap} to match, or use silicone and squeeze
+it down. A uniform bond layer only resizes the image sphere very slightly; an uneven one
+tilts a mirror, which is the error that actually matters.
+
+Then glue the three corner joints, band or tape the assembly while it sets, and add the
+object chamber and eyepiece.
+
+\vfill
+{\footnotesize\color{reg}
+Companion files: \texttt{mirror-template.pdf} (1:1 cutting template),
+\texttt{kaleidoscope-side.fs} (the Onshape feature, with the geometry derivations in its
+header), \texttt{scope-sim.html} (ray-traced preview --- enter dihedral 60.5293 and ratio 2
+to see what this prototype should look like).}
+
+\end{document}
