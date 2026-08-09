@@ -37,13 +37,12 @@ import(path : "onshape/std/common.fs", version : "3044.0");
    `edgeMargin` is how far inside the band to stay.
 
    WHERE THE MIRROR SITS ON THE FLOOR
-   The pocket floor is wider than the mirror, and asymmetrically so.  On the
-   split-plane side the floor runs past the mirror edge by exactly
-   `edgeMargin`; on the corner-block side it runs past by sqrt(3) * pocket.
-   So the assembly rule is: set the mirror edge `edgeMargin` (1 mm by default)
-   in from the flat split face.  Set edgeMargin near zero and the mirror edge
-   becomes flush with that face, which is self-registering but leaves no
-   support margin for error.
+   The split face lands at exactly -(faceWidth/2) - edgeMargin, independent of
+   mirror thickness, because lap is itself derived from the pocket depth.  So
+   a blank cut `edgeMargin` oversize (26.40 / 51.80 mm for the defaults here)
+   finishes flush with the split face when its leading edge is seated.  That
+   flush relationship is a free assembly check and survives any change to
+   mirrorThickness.
 
    PRINT ORIENTATION
    The part is transformed at the end so the outside face lies on the XY plane.
@@ -55,9 +54,27 @@ import(path : "onshape/std/common.fs", version : "3044.0");
    MIRROR EDGES NEED NO BEVEL
    At a 60° corner each mirror's body offsets away from its neighbour, so two
    square-cut edges can both reach the vertex without either one shadowing the
-   other's reflective face.  Both mirrors are full width.  This only works in
-   one handedness — all three mirrors must go in with the same rotational
-   sense.
+   other's reflective face.  Both mirrors are full width, and the arrangement
+   is symmetric — it has no handedness.
+
+   THERE IS A 120° VOID AT EVERY CORNER
+   Beyond the ideal vertex, out to the floor corner at 2 * pocket, nothing
+   occupies the space: not the mirror, not its neighbour, not the rail.  The
+   floor runs continuously across the joint there (the neighbouring rail's
+   block provides the far half), so that void will support a mirror extended
+   past the vertex.  Using it converts each seam from edge-to-edge, where a
+   short-cut mirror opens a gap, into edge-to-plane, where the overlap
+   guarantees contact.  Costs nothing optically — the overlapping material
+   sits behind the neighbour's plane, outside the light path — and the blank
+   stays symmetric, since adding a constant to the width of an isosceles
+   trapezoid leaves it isosceles.  Only the installed orientation is handed.
+
+   The overlap must go on the mirror whose face RISES from the vertex; the
+   other mirror's square edge then slides in and touches with its top corner
+   first, landing exactly on the vertex.  Reversed, the two collide.  In rail
+   terms each mirror overlaps at its split-face side and leads at its block
+   side.  Overlap limit is pocket / sin(60°) — 2.064 mm here — beyond which
+   the extension grounds out on the far floor.
    ───────────────────────────────────────────────────────────────────────── */
 
 
