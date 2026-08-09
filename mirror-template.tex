@@ -1,15 +1,17 @@
 % Kaleidoscope mirror cutting template — 100 mm prototype.
-% Blank: parallel edges 26.40 / 51.80 mm, height 100.268 mm, legs 101.070 mm.
-% That is the optical face (25.40 / 50.80) plus a 1.00 mm overlap allowance.
+% Blank: parallel edges 26.40 / 51.80 mm, height 100.268 mm, both legs 101.069 mm.
+% Laid out with the LEADING edge on a factory edge of the tile (11.75" = 298.45 mm).
+% Blank footprint measured from that edge: 104.386 along it, 51.389 in from it.
 % Everything is drawn 1:1. Do not scale this file when printing.
-\documentclass[letterpaper,11pt]{article}
-\usepackage[letterpaper,top=11mm,bottom=10mm,left=13mm,right=13mm]{geometry}
+\documentclass[letterpaper,10pt]{article}
+\usepackage[letterpaper,landscape,top=10mm,bottom=8mm,left=13mm,right=13mm]{geometry}
 \usepackage{tikz}
 \usepackage{xcolor}
 \usetikzlibrary{arrows.meta}
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
 \definecolor{reg}{gray}{0.45}
+\definecolor{fac}{rgb}{0.70,0.15,0.10}
 
 % corner registration mark: prick through the centre with a pin
 \newcommand{\cmark}[2]{%
@@ -18,125 +20,133 @@
   \draw[reg,line width=0.18mm] ({#1},{#2-2.8}) -- ({#1},{#2+2.8});
 }
 
-\newcommand{\Hgt}{100.268}
+% one blank, leading edge on y=0, shifted right by #1
+\newcommand{\blank}[2]{%
+  \draw ({3.317+#1},0) -- ({0+#1},26.191) -- ({97.877+#1},51.389) -- ({104.386+#1},0) -- cycle;
+  \cmark{3.317+#1}{0}\cmark{0+#1}{26.191}\cmark{97.877+#1}{51.389}\cmark{104.386+#1}{0}
+  \node[font=\small\bfseries,reg] at ({52+#1},20) {#2};
+}
 
 \begin{document}
 
 \begin{center}
-  {\large\bfseries Kaleidoscope mirror cutting template}\\[0.8mm]
+  {\large\bfseries Kaleidoscope mirror cutting template}\\[0.6mm]
   {\small 100\,mm prototype \quad\textperiodcentered\quad three identical mirrors
    \quad\textperiodcentered\quad drawn 1:1}
 \end{center}
 
-\vspace{1mm}
+\vspace{0.5mm}
 \fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\small
 \textbf{Print at 100\%.} In the print dialog choose \emph{Actual size} or \emph{100\%} —
-not \emph{Fit to page}, not \emph{Shrink oversized pages}. Then check \emph{both} rulers
-below with a real ruler before you cut anything. If they are off, so is every dimension
-on this page.}}
+not \emph{Fit to page}, not \emph{Shrink oversized pages}. Check \emph{both} rulers below
+with a real ruler before cutting anything. If they are off, so is every dimension here.}}
 
-\vspace{3mm}
+\vspace{2.5mm}
 
 % ── horizontal scale check ────────────────────────────────────────────────
 \begin{tikzpicture}[x=1mm,y=1mm]
-  \draw[line width=0.35mm] (0,0) -- (100,0);
+  \draw[line width=0.35mm] (0,0) -- (101.6,0);
+  % millimetres below the line
   \foreach \i in {0,10,...,100} {
-    \draw[line width=0.25mm] (\i,0) -- (\i,-3.2);
-    \node[below,font=\scriptsize,inner sep=1pt] at (\i,-3.2) {\i};
+    \draw[line width=0.25mm] (\i,0) -- (\i,-3.0);
+    \node[below,font=\scriptsize,inner sep=1pt] at (\i,-3.0) {\i};
   }
   \foreach \i in {5,15,...,95} { \draw[line width=0.18mm] (\i,0) -- (\i,-1.8); }
-  \node[right,font=\small] at (105,-2) {$\longleftarrow$ this must measure exactly 100.0\,mm};
+  \node[left,font=\scriptsize,inner sep=1pt] at (-2.2,-3.2) {mm};
+  % inches above it
+  \foreach \i/\lab in {0/0, 25.4/1, 50.8/2, 76.2/3, 101.6/4} {
+    \draw[line width=0.25mm] (\i,0) -- (\i,3.0);
+    \node[above,font=\scriptsize,inner sep=1pt] at (\i,3.0) {\lab};
+  }
+  \foreach \i in {12.7,38.1,63.5,88.9} { \draw[line width=0.18mm] (\i,0) -- (\i,1.8); }
+  \node[left,font=\scriptsize,inner sep=1pt] at (-2.2,3.2) {in};
+  \node[right,font=\small,align=left,inner sep=3pt] at (106,0)
+        {0--100 below $=$ 100.0\,mm exactly\\0--4 above $=$ 4.000\,in exactly};
 \end{tikzpicture}
 
-\vspace{5mm}
+\vspace{3mm}
 
-% ── the parts, with a vertical scale check alongside ──────────────────────
+% ── the blanks, sitting on the factory-edge reference line ────────────────
 \begin{tikzpicture}[x=1mm,y=1mm,line width=0.30mm]
 
-  % vertical 100 mm ruler
-  \draw[line width=0.35mm] (0,0) -- (0,100);
-  \foreach \i in {0,10,...,100} {
-    \draw[line width=0.25mm] (0,\i) -- (3.2,\i);
-    \node[right,font=\scriptsize,inner sep=1pt] at (3.6,\i) {\i};
+  % vertical scale check: 50 mm to the right, 2 in to the left
+  \draw[line width=0.35mm] (0,0) -- (0,50.8);
+  \foreach \i in {0,10,...,50} {
+    \draw[line width=0.25mm] (0,\i) -- (3.0,\i);
+    \node[right,font=\scriptsize,inner sep=1pt] at (3.4,\i) {\i};
   }
-  \foreach \i in {5,15,...,95} { \draw[line width=0.18mm] (0,\i) -- (1.8,\i); }
+  \foreach \i in {5,15,...,45} { \draw[line width=0.18mm] (0,\i) -- (1.8,\i); }
+  \foreach \i/\lab in {25.4/1, 50.8/2} {
+    \draw[line width=0.25mm] (0,\i) -- (-3.0,\i);
+    \node[left,font=\scriptsize,inner sep=1pt] at (-3.2,\i) {\lab};
+  }
+  \foreach \i in {12.7,38.1} { \draw[line width=0.18mm] (0,\i) -- (-1.8,\i); }
+  \node[right,font=\scriptsize,inner sep=1pt] at (2.4,53.8) {mm};
+  \node[left,font=\scriptsize,inner sep=1pt] at (-2.4,53.8) {in};
 
-  % ── mirror 1 : narrow edge at the bottom ──
-  \draw (28.70,0) -- (55.10,0) -- (67.80,\Hgt) -- (16.00,\Hgt) -- cycle;
-  \cmark{28.70}{0}\cmark{55.10}{0}\cmark{67.80}{\Hgt}\cmark{16.00}{\Hgt}
-  \node[font=\small\bfseries,reg] at (41.90,50) {1};
+  \blank{14}{1}
+  \blank{126.386}{2}
 
-  % ── mirror 2 : flipped, wide edge at the bottom ──
-  \draw (63.10,0) -- (114.90,0) -- (102.20,\Hgt) -- (75.80,\Hgt) -- cycle;
-  \cmark{63.10}{0}\cmark{114.90}{0}\cmark{102.20}{\Hgt}\cmark{75.80}{\Hgt}
-  \node[font=\small\bfseries,reg] at (89.00,50) {2};
+  % the reference line, and the strip that hangs off the tile
+  \draw[fac,line width=0.7mm] (-6,0) -- (240,0);
+  \foreach \x in {-4,0,...,237} { \draw[fac!40,line width=0.15mm] (\x,0) -- ({\x-3},-3.2); }
+  \node[fac,font=\scriptsize\bfseries,below right] at (-6,-4.4)
+        {FACTORY EDGE OF THE TILE — lay this line on it. Never cut or sand along it.};
+  \node[reg,font=\scriptsize,below right] at (-6,-9.2)
+        {Everything below the line hangs off the tile, which is how you sight the alignment.};
 
-  % ── mirror 3 : narrow edge at the bottom ──
-  \draw (122.90,0) -- (149.30,0) -- (162.00,\Hgt) -- (110.20,\Hgt) -- cycle;
-  \cmark{122.90}{0}\cmark{149.30}{0}\cmark{162.00}{\Hgt}\cmark{110.20}{\Hgt}
-  \node[font=\small\bfseries,reg] at (136.10,50) {3};
-
-  % dimensions, shown once on mirror 1
-  \draw[reg,line width=0.15mm] (28.70,0) -- (28.70,-9);
-  \draw[reg,line width=0.15mm] (55.10,0) -- (55.10,-9);
-  \draw[reg,line width=0.2mm,{Stealth[length=2mm]}-{Stealth[length=2mm]}]
-        (28.70,-7) -- (55.10,-7) node[midway,fill=white,inner sep=1pt,font=\scriptsize]{26.40};
-
-  \draw[reg,line width=0.15mm] (16.00,\Hgt) -- (16.00,\Hgt+9);
-  \draw[reg,line width=0.15mm] (67.80,\Hgt) -- (67.80,\Hgt+9);
-  \draw[reg,line width=0.2mm,{Stealth[length=2mm]}-{Stealth[length=2mm]}]
-        (16.00,\Hgt+7) -- (67.80,\Hgt+7) node[midway,fill=white,inner sep=1pt,font=\scriptsize]{51.80};
-
-  \node[reg,font=\scriptsize] at (41.90,-13.5) {slanted sides 101.07};
-  \node[reg,font=\scriptsize] at (41.90,\Hgt+13) {height between parallel edges 100.27};
+  % edge roles, shown once
+  \node[font=\scriptsize,fac] at (68,3.6) {leading edge — factory, uncut};
+  \node[font=\scriptsize,reg,rotate=14.4] at (62,41.5) {overlap edge — cut};
+  \node[font=\scriptsize,reg,rotate=90] at (21,13) {narrow end};
+  \node[font=\scriptsize,reg,rotate=90] at (108,20) {wide end};
 
 \end{tikzpicture}
 
-\vspace{4mm}
-\hrule
 \vspace{2mm}
+\hrule
+\vspace{1.5mm}
 
-{\small
-\textbf{How to use it.} Leave the protective film on the mirror. Tape this sheet down
-over it, prick through the centre of all twelve circled marks with a pin or a scribe,
-lift the paper off, then join the pricks with your straightedge and score along those
-lines. Marking through the paper is more accurate than trying to cut through it — a
-knife shreds paper and then wanders.
-
-\smallskip
-
-\textbf{These blanks are 1.00\,mm wider than the optical face,} which is 25.40 and
-50.80\,mm. The surplus is deliberate. At assembly each mirror is pushed toward one corner
-until its leading edge stops against the neighbour's mirror, and the surplus buries itself
-in the dead space behind — so a blank that comes out a little wide or a little narrow still
-seats with no gap at the seam.
+{\footnotesize
+\textbf{Blank:} parallel edges \textbf{26.40} and \textbf{51.80\,mm}, both slanted edges
+\textbf{101.07\,mm}, height between the parallel edges \textbf{100.27\,mm}. Three needed;
+two are drawn. Cut the third the same way against another factory edge — a 298.45\,mm edge
+takes two blanks and the tile has four edges.
 
 \smallskip
 
-\textbf{Anything from 25.5 to 27.4\,mm at the narrow end will work,} measured across the
-parallel edge. Err generous and sand back rather than cutting tight: too narrow eventually
-opens a gap at the seam, which prints as a dark line across every facet, while too wide is
-harmless until the surplus runs out of dead space.
+\textbf{Why the factory edge.} Only one edge of each mirror is optically critical: the
+leading edge, which lands on the neighbouring mirror at the seam. Its coating has to run
+right to the edge, and no cut you make beats the edge the tile came with.
+The overlap edge is buried in dead space behind its neighbour and never sees light, so it
+only needs to be free of burrs. The two ends hide under the end caps.
 
 \smallskip
 
-\textbf{Cut with the coated side facing up.} These are rear-surface mirrors — clear plastic
-in front, reflective coating on the back. Blade down through the coating gives a clean
-coating edge; the tear-out from the last pass then lands on the clear face, where it does not
-matter. Slip a sheet of paper under the clear face so the mat cannot mark it.
+\textbf{Placing it.} Leave the protective film on. Lay the sheet so the heavy line sits on a
+factory edge, with the strip below it overhanging so you can sight the alignment, and tape it
+down. Prick through the centre of all eight circled marks with a pin, lift the paper, join the
+pricks with your straightedge, and cut only the three non-factory edges.
 
 \smallskip
 
-\textbf{Only the slanted edges matter.} The 101.07\,mm sides butt against the neighbouring
-mirrors — they must be straight, and the reflective coating must run right to the edge. The
-26.40 and 51.80\,mm ends are hidden under the end caps and can be rough.
+\textbf{Coated side up.} These are rear-surface mirrors — clear plastic in front, reflective
+coating on the back. A jeweller's saw cuts on the downstroke, so the teeth enter the top face
+and break out of the bottom; coated side up puts that breakout on the clear face. Blade: a
+\#2, teeth pointing toward the handle.
 
 \smallskip
 
-\textbf{There is no left or right.} Each trapezoid is symmetric, so all three pieces are
-interchangeable and either slanted edge can end up as the overlap. What must be consistent
-is the \emph{assembly}: all three mirrors get pushed the same way round. Mirror 2 is drawn
-flipped only to nest the three efficiently on the tile.
+\textbf{Mark the factory edge} on the coated back as soon as each blank is free — a stripe of
+marker is enough. Once the four edges are cut apart it is easy to lose track of which one it
+was, and at assembly it has to end up on the corner-block side of its rail.
+
+\smallskip
+
+\textbf{Width is forgiving.} Anything from 25.5 to 27.4\,mm across the narrow edge will seat,
+because the surplus buries itself behind the neighbouring mirror. Err generous and sand back.
+Sand only the cut edges, never the factory edge: 400-grit silicon carbide to take the burr
+off, 600 to finish.
 }
 
 \end{document}
