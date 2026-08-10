@@ -96,9 +96,6 @@ export const kaleidoscopeCollar = defineFeature(function(context is Context, id 
         annotation { "Name" : "Blade thickness" }
         isLength(definition.bladeThick, { (millimeter) : [1.5, 3.0, 8.0] } as LengthBoundSpec);
 
-        annotation { "Name" : "Blade height" }
-        isLength(definition.bladeHeight, { (millimeter) : [5.0, 10.0, 40.0] } as LengthBoundSpec);
-
         annotation { "Name" : "Bolt centre, out from the collar face" }
         isLength(definition.holeOut, { (millimeter) : [3.0, 6.0, 30.0] } as LengthBoundSpec);
 
@@ -138,16 +135,17 @@ export const kaleidoscopeCollar = defineFeature(function(context is Context, id 
                 "operationType" : BooleanOperationType.SUBTRACTION
         });
 
-        // blade on the bottom flat, occupying x in [-bladeThick, 0]
+        // Blade on the bottom flat, occupying x in [-bladeThick, 0].  It runs
+        // the full height of the collar so its underside lands on the build
+        // plate — anything shorter leaves the part of the blade that overhangs
+        // the collar wall printing in mid-air.
         const zMid = Lc / 2;
         const outMid = roN + m * (zSeat + zMid) + cw;
         const bs = newSketchOnPlane(context, id + "bsk", {
                 "sketchPlane" : plane(vector(-1, 0, 0) * bt, vector(1, 0, 0), vector(0, 0, 1)) });
         skRectangle(bs, "r", {
-                "firstCorner" : vector(zMid - definition.bladeHeight / 2,
-                                       outMid - cw + 1 * millimeter),
-                "secondCorner" : vector(zMid + definition.bladeHeight / 2,
-                                        outMid + definition.bladeReach)
+                "firstCorner" : vector(0 * millimeter, outMid - cw + 1 * millimeter),
+                "secondCorner" : vector(Lc, outMid + definition.bladeReach)
         });
         skCircle(bs, "h", { "center" : vector(zMid, outMid + definition.holeOut),
                             "radius" : definition.holeDia / 2 });
