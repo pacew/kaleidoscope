@@ -111,11 +111,17 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
         annotation { "Name" : "Lip overlap onto the mirror" }
         isLength(definition.lipOverlap, { (millimeter) : [0.2, 0.8, 5.0] } as LengthBoundSpec);
 
-        annotation { "Name" : "Collar seat, from the narrow end" }
+        annotation { "Name" : "Collar seat AS PRINTED (sets bolt radius)" }
         isLength(definition.collarSeatZ, { (millimeter) : [5.0, 76.0, 700.0] } as LengthBoundSpec);
+
+        annotation { "Name" : "MEASURED collar top to plate wide edge" }
+        isLength(definition.collarTopToEnd, { (millimeter) : [0.0, 17.8, 200.0] } as LengthBoundSpec);
 
         annotation { "Name" : "Collar length" }
         isLength(definition.collarLength, { (millimeter) : [5.0, 12.0, 60.0] } as LengthBoundSpec);
+
+        annotation { "Name" : "Ear offset (clears the collar's ear)" }
+        isLength(definition.earOffset, { (millimeter) : [0.0, 3.5, 20.0] } as LengthBoundSpec);
 
         annotation { "Name" : "Collar wall" }
         isLength(definition.collarWall, { (millimeter) : [1.5, 2.5, 8.0] } as LengthBoundSpec);
@@ -177,14 +183,29 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
                 "operationType" : BooleanOperationType.SUBTRACTION
         });
 
-        // Blade in x = [0, bladeThick].  Runs from the floor up past the slot.
+        // Blade in x = [earOffset, earOffset + bladeThick].  The offset is what
+        // keeps it clear of the collar's ear: this cap prints upside-down and
+        // has to be turned over to use, and any 180° flip that keeps the flats
+        // aligned reverses x — so a blade modelled at x = [0, bt] lands exactly
+        // on top of the collar's at x = [-bt, 0].  Separating them costs a full
+        // blade thickness plus clearance, not half of one.
+        //
+        // Bolt RADIUS comes from the collar's own model, since the blade's
+        // radius is baked into that printed part and does not change with where
+        // the collar ends up sitting.
         const outMid = roN + m * (definition.collarSeatZ + definition.collarLength / 2)
                      + definition.collarWall;
-        const slotZ = fl + (L - (definition.collarSeatZ + definition.collarLength / 2));
+        // Bolt AXIAL position comes from the built scope instead: the wedge
+        // lands where it lands, and on the first build it stopped 5.8 mm short
+        // of the design seat.  Measure along the axis from the collar's wide
+        // edge to the plates' wide edge.
+        const collarMidZ = L - definition.collarTopToEnd - definition.collarLength / 2;
+        const slotZ = fl + (L - collarMidZ);
         const halfSlot = definition.slotTravel / 2;
         const bladeTop = slotZ + halfSlot + hr + 4 * millimeter;
         const bs = newSketchOnPlane(context, id + "bsk", {
-                "sketchPlane" : plane(vector(0, 0, 0) * millimeter, vector(1, 0, 0), vector(0, 0, 1)) });
+                "sketchPlane" : plane(vector(1, 0, 0) * definition.earOffset,
+                                      vector(1, 0, 0), vector(0, 0, 1)) });
         skRectangle(bs, "r", {
                 "firstCorner" : vector(0 * millimeter, boreMid + 0.5 * millimeter),
                 "secondCorner" : vector(bladeTop, outMid + definition.bladeReach)
