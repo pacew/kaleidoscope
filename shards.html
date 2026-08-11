@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaleidoscope object field</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden;
+               font: 13px/1.45 ui-sans-serif, system-ui, sans-serif; }
+  body { display: flex; background: #111; }
+  #stage { flex: 1; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #panel { width: 300px; padding: 14px 16px; overflow-y: auto;
+           background: #fbfaf8; color: #1c1a17; border-left: 1px solid #ddd8d0; }
+  body.bare #panel { display: none; }
+  h1 { font-size: 14px; margin: 0 0 2px; }
+  .sub { color: #7a7268; margin: 0 0 10px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7a7268;
+       margin: 16px 0 8px; border-bottom: 1px solid #e6e1d9; padding-bottom: 4px; }
+  label { display: block; margin: 9px 0 2px; font-size: 12px; }
+  label .v { float: right; color: #7a7268; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin: 0; }
+  select, button, input[type=number] { font: inherit; width: 100%; padding: 5px 7px; margin-top: 4px;
+                   border: 1px solid #ccc6bc; border-radius: 5px; background: #fff; }
+  button { cursor: pointer; }
+  button:hover { background: #f0ece5; }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; }
+  .hint { color: #8a8278; font-size: 11px; margin-top: 8px; }
+  #tip { position: absolute; left: 12px; bottom: 10px; color: #666; font-size: 11px;
+         background: rgba(255,255,255,.72); padding: 3px 8px; border-radius: 4px;
+         pointer-events: none; transition: opacity .5s; }
+  body.bare #tip { opacity: 0; }
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="cv"></canvas><div id="tip">press H to hide the panel, F for fullscreen</div></div>
+
+<div id="panel">
+  <h1>Object field</h1>
+  <p class="sub">Rest the scope's narrow end on the screen and look in the wide end.</p>
+
+  <div class="row">
+    <button id="bare">Hide panel (H)</button>
+    <button id="full">Fullscreen (F)</button>
+  </div>
+  <button id="reseed" style="margin-top:6px">New arrangement</button>
+
+  <h2>Look</h2>
+  <label>Style</label>
+  <select id="mode">
+    <option value="glass">Backlit glass — colour on white</option>
+    <option value="glow">Glowing chips — colour on black</option>
+  </select>
+  <label>Palette</label>
+  <select id="pal">
+    <option value="full">Full spectrum</option>
+    <option value="jewel">Jewel tones</option>
+    <option value="warm">Warm</option>
+    <option value="cool">Cool</option>
+  </select>
+  <label>Saturation <span class="v" id="vSat"></span></label>
+  <input type="range" id="sat" min="0" max="100" step="1">
+  <label>Density <span class="v" id="vDen"></span></label>
+  <input type="range" id="den" min="2" max="1200" step="1">
+  <label>Shard size <span class="v" id="vSize"></span></label>
+  <input type="range" id="size" min="1" max="14" step="0.1">
+  <label>Edge darkness <span class="v" id="vEdge"></span></label>
+  <input type="range" id="edge" min="0" max="100" step="1">
+  <p class="hint" id="perf" style="margin-top:6px"></p>
+
+  <h2>Motion</h2>
+  <label>Drift speed <span class="v" id="vSpd"></span></label>
+  <input type="range" id="spd" min="0" max="25" step="0.1">
+  <label>Tumble <span class="v" id="vSpin"></span></label>
+  <input type="range" id="spin" min="0" max="30" step="0.5">
+
+  <h2>Screen scale</h2>
+  <p class="hint" style="margin-top:0">A ruler is drawn on the field itself while this panel
+     is up. Lay a real ruler along it, read the <strong id="calspan">0&ndash;100</strong>&nbsp;mm
+     marks, type what they actually measure, and press Set.</p>
+  <div class="row">
+    <input type="number" id="meas" step="0.5" min="1" placeholder="reads&hellip; mm">
+    <button id="applyCal">Set</button>
+  </div>
+  <label>Pixels per mm <span class="v" id="vCal"></span></label>
+  <input type="range" id="cal" min="1.5" max="20" step="0.01">
+
+  <h2>Field</h2>
+  <label>Active area <span class="v" id="vAct"></span></label>
+  <input type="range" id="active" min="20" max="200" step="1">
+  <p class="hint" style="margin-top:2px">Shards live only inside this square, and the rest of
+     the screen goes dark. Put the small end anywhere inside it.</p>
+
+  <label style="margin-top:12px">Small end, for the count <span class="v" id="vSmall"></span></label>
+  <input type="range" id="smallEnd" min="5" max="80" step="0.5">
+  <p class="hint" style="margin-top:2px">Not drawn — it only sets the &ldquo;in view&rdquo;
+     figure above, which is what the density slider is really tuning.</p>
+
+  <p class="hint">Shards are sized and moved in true millimetres once calibrated, so the field
+     looks the same on any screen.</p>
+</div>
+
+<script>
+"use strict";
+
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d", { alpha: false });
+const el = id => document.getElementById(id);
+const S = {};
+for (const k of ["mode","pal","sat","den","size","edge","spd","spin","cal","active","smallEnd"]) S[k] = el(k);
+
+/* defaults */
+S.sat.value = 80; S.den.value = 500; S.size.value = 5; S.edge.value = 35;
+S.spd.value = 7; S.spin.value = 6; S.cal.value = 6.23; S.active.value = 76.2; S.smallEnd.value = 25.4;
+
+const PALETTES = {
+  full:  null,                                   // anything goes
+  jewel: [352, 20, 45, 155, 200, 262, 300],
+  warm:  [0, 15, 30, 45, 60],
+  cool:  [170, 190, 210, 235, 260, 285]
+};
+
+let shards = [], W = 0, H = 0, dpr = 1, seed = 1, last = 0;
+
+function rnd() {                                  // deterministic per seed
+  seed = (seed * 1664525 + 1013904223) % 4294967296;
+  return seed / 4294967296;
+}
+
+function hue() {
+  const p = PALETTES[S.pal.value];
+  if (!p) return rnd() * 360;
+  return p[Math.floor(rnd() * p.length)] + (rnd() - 0.5) * 14;
+}
+
+// An irregular chip: vertices on a jittered circle, so it reads as broken glass
+// rather than a regular polygon.
+function makeShard(R) {
+  const n = 3 + Math.floor(rnd() * 4);
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + (rnd() - 0.5) * 0.8;
+    const r = 0.5 + rnd() * 0.75;
+    pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  return {
+    pts,
+    x: R.x + rnd() * R.s, y: R.y + rnd() * R.s,    // px, inside the field
+    vx: (rnd() - 0.5), vy: (rnd() - 0.5),          // unit dir, scaled at draw time
+    ang: rnd() * Math.PI * 2,
+    spin: (rnd() - 0.5),
+    scale: 0.55 + rnd() * 0.9,                     // relative to the size slider
+    a0: 0,                                         // area in units of rad^2, filled below
+    h: hue(),
+    l: 0.35 + rnd() * 0.3
+  };
+}
+
+// The lit square, centred on the canvas.  Everything outside it is dead screen.
+function fieldRect() {
+  const px = +S.cal.value;
+  const side = Math.min(+S.active.value * px, Math.min(W, H) - 8);
+  return { x: (W - side) / 2, y: (H - side) / 2, s: Math.max(20, side) };
+}
+
+function shoelace(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    a += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1];
+  }
+  return Math.abs(a) / 2;
+}
+
+function rebuild() {
+  const units = (+S.active.value * +S.active.value) / 10000;   // 100x100 mm units
+  const n = Math.max(4, Math.round(+S.den.value * units));
+  const R = fieldRect();
+  seed = Math.floor(Math.random() * 1e9) || 1;
+  shards = [];
+  for (let i = 0; i < n; i++) {
+    const sh = makeShard(R);
+    sh.a0 = shoelace(sh.pts) * sh.scale * sh.scale;
+    shards.push(sh);
+  }
+}
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = cv.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width));
+  H = Math.max(1, Math.round(r.height));
+  cv.width = Math.round(W * dpr);
+  cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  rebuild();
+}
+
+function frame(t) {
+  const dt = last ? Math.min((t - last) / 1000, 0.1) : 0;
+  if (dt > 0) fps = fps ? fps * 0.92 + (1 / dt) * 0.08 : 1 / dt;
+  last = t;
+
+  const px = +S.cal.value;
+  const glass = S.mode.value === "glass";
+  const sat = +S.sat.value;
+  const rad = +S.size.value * px / 2;
+  const edge = +S.edge.value / 100;
+  const drift = +S.spd.value * px;                 // mm/s -> px/s
+  const spin = +S.spin.value * Math.PI / 180;      // deg/s -> rad/s
+  const pad = rad * 3;
+
+  const R = fieldRect();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#141414";                       // dead screen around the field
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = glass ? "#fff" : "#000";
+  ctx.fillRect(R.x, R.y, R.s, R.s);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(R.x, R.y, R.s, R.s);
+  ctx.clip();                                      // shards wrap out of sight
+  ctx.globalCompositeOperation = glass ? "multiply" : "lighter";
+
+  for (const s of shards) {
+    s.x += s.vx * drift * dt;
+    s.y += s.vy * drift * dt;
+    s.ang += s.spin * spin * dt;
+    if (s.x < R.x - pad) s.x = R.x + R.s + pad;
+    else if (s.x > R.x + R.s + pad) s.x = R.x - pad;
+    if (s.y < R.y - pad) s.y = R.y + R.s + pad;
+    else if (s.y > R.y + R.s + pad) s.y = R.y - pad;
+
+    const light = glass ? 100 - (100 - s.l * 100) * (sat / 100) * 0.9
+                        : 26 + s.l * 34;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.ang);
+    ctx.beginPath();
+    const r = rad * s.scale;
+    ctx.moveTo(s.pts[0][0] * r, s.pts[0][1] * r);
+    for (let i = 1; i < s.pts.length; i++) ctx.lineTo(s.pts[i][0] * r, s.pts[i][1] * r);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${s.h} ${sat}% ${light}%)`;
+    ctx.fill();
+    if (edge > 0) {
+      ctx.lineWidth = Math.max(1, 0.25 * px);
+      ctx.strokeStyle = glass
+        ? `hsl(${s.h} ${sat}% ${Math.max(4, light - 55 * edge)}%)`
+        : `rgba(0,0,0,${edge})`;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  if (!document.body.classList.contains("bare")) drawRuler(px, glass);
+
+  readouts();
+  requestAnimationFrame(frame);
+}
+
+let rulerSpan = 100, fps = 0;
+
+// Calibration ruler drawn on the field, where there is room for a full 100 mm
+// even on a dense screen.  Millimetres below the line, inches above, same as
+// the cutting template.
+function drawRuler(px, glass) {
+  const avail = W - 90;
+  rulerSpan = (101.6 * px <= avail) ? 100 : (51.6 * px <= avail) ? 50 : 25;
+  const barLen = (rulerSpan === 100 ? 101.6 : rulerSpan === 50 ? 50.8 : 25.4) * px;
+  const x0 = 45, y0 = 52;
+  const ink = glass ? "#1c1a17" : "#eee";
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+  ctx.textBaseline = "alphabetic";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + barLen, y0); ctx.stroke();
+  ctx.textAlign = "center";
+  for (let i = 0; i <= rulerSpan; i += 5) {
+    const x = x0 + i * px, big = i % 10 === 0;
+    ctx.lineWidth = big ? 1.5 : 1;
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + (big ? 10 : 6)); ctx.stroke();
+    if (big) ctx.fillText(String(i), x, y0 + 23);
+  }
+  for (let i = 0; i * 25.4 * px <= barLen + 0.5; i++) {
+    const x = x0 + i * 25.4 * px;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 - 10); ctx.stroke();
+    ctx.fillText(String(i), x, y0 - 15);
+  }
+  ctx.textAlign = "left";
+  ctx.fillText("mm", x0 + barLen + 10, y0 + 4);
+  ctx.fillText("in", x0 - 30, y0 - 6);
+  ctx.fillText("mm", x0 - 34, y0 + 16);
+}
+
+function readouts() {
+  el("vSat").textContent = S.sat.value + "%";
+  el("vDen").textContent = S.den.value + " / 100mm²";
+  el("vSize").textContent = (+S.size.value).toFixed(1) + " mm";
+  el("vEdge").textContent = S.edge.value + "%";
+  el("vSpd").textContent = (+S.spd.value).toFixed(1) + " mm/s";
+  el("vSpin").textContent = (+S.spin.value).toFixed(1) + " °/s";
+  el("vCal").textContent = (+S.cal.value).toFixed(2);
+  el("calspan").textContent = "0\u2013" + rulerSpan;
+  const rad = +S.size.value * +S.cal.value / 2;
+  let cov = 0;
+  for (const s of shards) cov += s.a0 * rad * rad;
+  const FR = fieldRect();
+  cov = FR.s > 0 ? cov / (FR.s * FR.s) : 0;
+  const side = +S.smallEnd.value;
+  const apMM = Math.sqrt(3) / 4 * side * side;            // small-end triangle, mm^2
+  const inView = +S.den.value * apMM / 10000;
+  el("perf").textContent = "\u2248" + inView.toFixed(0) + " in view \u00b7 "
+      + shards.length + " total \u00b7 \u00d7" + cov.toFixed(2) + " coverage \u00b7 "
+      + Math.round(fps) + " fps";
+  el("vAct").textContent = (+S.active.value).toFixed(0) + " mm";
+  el("vSmall").textContent = (+S.smallEnd.value).toFixed(1) + " mm";
+}
+
+/* wiring */
+for (const k of ["den", "cal", "active"]) S[k].addEventListener("input", rebuild);
+S.pal.addEventListener("change", rebuild);
+el("reseed").onclick = rebuild;
+el("applyCal").onclick = () => {
+  const v = parseFloat(el("meas").value);
+  if (!(v > 0)) return;
+  S.cal.value = Math.min(20, Math.max(1.5, +S.cal.value * (rulerSpan / v))).toFixed(2);
+  el("meas").value = "";
+  rebuild();
+};
+el("bare").onclick = () => { document.body.classList.toggle("bare"); setTimeout(resize, 60); };
+el("full").onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.();
+};
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === "h") el("bare").click();
+  if (k === "f") el("full").click();
+  if (k === "n") rebuild();
+});
+addEventListener("resize", resize);
+document.addEventListener("fullscreenchange", () => setTimeout(resize, 60));
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
