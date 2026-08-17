@@ -1,13 +1,28 @@
 {
+    "_comment": [
+	"tex/pandoc/poppler moved to ~/.config/aisand/config.json (aisand add).",
+	"numpy and pillow are pip, not apt: pip_packages builds an isolated",
+	"venv at /opt/venv that shadows python3, so apt python3-* is unreachable.",
+	"The X/GL libraries are for OpenCascade, which links them unconditionally",
+	"even though nothing renders."
+    ],
     "extra_packages": [
-        "python3-numpy",
-        "pandoc",
-        "texlive-latex-base",
-        "texlive-latex-recommended",
-        "texlive-latex-extra",
-        "texlive-fonts-recommended",
-	"poppler-utils",
-	"texlive-pictures",
-	"python3-pil"
+	"libgl1",
+	"libglu1-mesa",
+	"libx11-6",
+	"libxext6",
+	"libxrender1",
+	"libxi6",
+	"libsm6",
+	"libice6",
+	"libfontconfig1",
+	"libfreetype6",
+	"admesh"
+    ],
+    "pip_packages": [
+	"build123d",
+	"trimesh",
+	"numpy",
+	"pillow"
     ]
 }

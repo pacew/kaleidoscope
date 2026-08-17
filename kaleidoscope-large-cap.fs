@@ -103,7 +103,13 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
         isLength(definition.endSkirt, { (millimeter) : [2.0, 6.0, 40.0] } as LengthBoundSpec);
 
         annotation { "Name" : "Clearance over the tube" }
-        isLength(definition.endClear, { (millimeter) : [0.0, 0.3, 2.0] } as LengthBoundSpec);
+        isLength(definition.endClear, { (millimeter) : [0.0, 0.5, 2.0] } as LengthBoundSpec);
+
+        annotation { "Name" : "Mitre truncation on the plates" }
+        isLength(definition.miterLand, { (millimeter) : [0.2, 0.6, 3.0] } as LengthBoundSpec);
+
+        annotation { "Name" : "Clearance over the collar body" }
+        isLength(definition.collarClear, { (millimeter) : [0.1, 0.6, 4.0] } as LengthBoundSpec);
 
         annotation { "Name" : "Wall" }
         isLength(definition.endWall, { (millimeter) : [1.5, 2.5, 8.0] } as LengthBoundSpec);
@@ -141,8 +147,8 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
         annotation { "Name" : "Slot travel (total, about nominal)" }
         isLength(definition.slotTravel, { (millimeter) : [0.0, 6.0, 30.0] } as LengthBoundSpec);
 
-        annotation { "Name" : "Corner relief radius" }
-        isLength(definition.cornerRound, { (millimeter) : [0.5, 1.5, 6.0] } as LengthBoundSpec);
+        annotation { "Name" : "Bore corner radius (must stay small)" }
+        isLength(definition.cornerRound, { (millimeter) : [0.0, 0.3, 6.0] } as LengthBoundSpec);
     }
     {
         const S3 = sqrt(3);
@@ -158,6 +164,18 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
         const m = (definition.wideSide - definition.narrowSide) / (2 * S3 * L);
         const roN = definition.narrowSide / (2 * S3)
                   + definition.mirrorThickness + definition.plateThickness;
+
+        // A plate's outer face stops sqrt(3)*land short of the sharp vertex, so the
+        // assembled tube's corner reaches 2*ro - 1.5*land.  A rounded-triangle bore
+        // reaches only 2*R - cornerRound.  Rounding the bore therefore EATS corner
+        // clearance rather than providing it, and past 1.5*land the corners bite
+        // before the flats do — the cap then rides on the plates' points instead of
+        // squeezing the mitres shut.
+        const cornerClear = 1.5 * definition.miterLand - cr;
+        if (cornerClear <= 0.1 * millimeter)
+            throw regenError("Bore corner radius must stay below 1.5 x the mitre truncation ("
+                    ~ toString(1.5 * definition.miterLand / millimeter)
+                    ~ " mm here) or the corners interfere before the flats touch.");
 
         // Built upside-down: model z measures down from the outside of the
         // floor, so tube station z_tube = L - (z_model - fl).
@@ -203,13 +221,26 @@ export const kaleidoscopeLargeCap = defineFeature(function(context is Context, i
         const slotZ = fl + (L - collarMidZ);
         const halfSlot = definition.slotTravel / 2;
         const bladeTop = slotZ + halfSlot + hr + 4 * millimeter;
+        // The ear has to be inboard enough to weld into the cap's wall and outboard
+        // enough to miss the collar body, and those two windows barely overlap. So
+        // step it: buried in the wall over the skirt, stepped clear below it.
+        const rInTop = boreMid + 0.5 * millimeter;
+        const rInLow = roN + m * (definition.collarSeatZ + definition.collarLength)
+                     + definition.collarWall + definition.collarClear;
+        const rOut = outMid + definition.bladeReach;
+        if (rInLow >= rOut - 2 * hr - 1 * millimeter)
+            throw regenError("Collar clearance leaves no ear left. Reduce it or reach further.");
         const bs = newSketchOnPlane(context, id + "bsk", {
                 "sketchPlane" : plane(vector(1, 0, 0) * definition.earOffset,
                                       vector(1, 0, 0), vector(0, 0, 1)) });
-        skRectangle(bs, "r", {
-                "firstCorner" : vector(0 * millimeter, boreMid + 0.5 * millimeter),
-                "secondCorner" : vector(bladeTop, outMid + definition.bladeReach)
-        });
+        skPolyline(bs, "p", { "points" : [
+                    vector(0 * millimeter, rInTop),
+                    vector(fl + sk, rInTop),
+                    vector(fl + sk, rInLow),
+                    vector(bladeTop, rInLow),
+                    vector(bladeTop, rOut),
+                    vector(0 * millimeter, rOut),
+                    vector(0 * millimeter, rInTop)] });
         skSlot(bs, "s", vector(slotZ, outMid + definition.holeOut), halfSlot, hr);
         skSolve(bs);
         opExtrude(context, id + "blade", {

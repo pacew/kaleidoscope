@@ -1,2 +1,13 @@
 *~
 ?
+
+# Python bytecode caches, written next to any module that gets imported
+__pycache__/
+*.py[cod]
+
+# LaTeX intermediates from the template builds
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
