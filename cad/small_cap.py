@@ -17,9 +17,12 @@ taught us:
   * the bore's corner radius is small. Rounding a bore's corners removes
     clearance rather than adding it, and at 1.5 mm the corners were touching
     the plates' outer points with nothing to spare.
-  * the aperture's lip is half a mirror thickness and its corners are as
-    sharp as the nozzle allows. The lip only has to stop the mirrors falling
-    through; what made it obtrusive was the corner radius, not the lip.
+  * the aperture's lip is small and its corners are separate from the bore's.
+    The floor catches the mirror's END face whatever the lip does -- 1.59 mm
+    of bearing regardless -- so the lip is not structural at all, only
+    visible. On the prototype it printed as a yellow outline around every
+    triangle in the image. It can go to zero, or negative, without the
+    mirrors losing their seat.
 """
 
 from __future__ import annotations
@@ -43,9 +46,18 @@ class SmallCap:
     skirt: float = 16.0        # how far up the plates it grips
     floor: float = 2.0         # end plate under the aperture
     wall: float = 2.5
-    clearance: float = 0.3     # radial, on the flats
-    corner: float = 0.4        # bore and aperture corners — keep this small
-    lip: float = 0.0           # 0 means half a mirror thickness
+    clearance: float = 0.15    # radial, on the flats. Three mitred plates are
+    #                            rigid only while all three joints stay in
+    #                            contact, and this is how far they can spread
+    #                            before the joints open and the bumps walk out
+    bore_corner: float = 0.7   # bigger pulls the bore's corner IN, shrinking
+    #                            the visible gap at each vertex but eating
+    #                            corner clearance. Stay under 1.5 * miter_land.
+    ap_corner: float = 0.3     # separate from the bore's, and as sharp as the
+    #                            nozzle manages: it lands in the object field,
+    #                            where it costs twice the lip does at a corner
+    lip: float = 0.294         # how far the floor reaches inboard of the
+    #                            mirror face. Purely cosmetic -- see above.
     detent_z: float = 8.0      # from the plates' narrow end
     bump_w: float = 6.0
     bump_l: float = 3.0
@@ -53,7 +65,7 @@ class SmallCap:
     ramp: float = 1.6          # lead-in length, in multiples of bump_h
 
     def lip_for(self, scope: Scope) -> float:
-        return self.lip if self.lip else scope.mirror / 2
+        return self.lip
 
 
 def _rtri(inradius: float, corner: float, z: float):
@@ -72,14 +84,14 @@ def build(scope: Scope, cap: SmallCap):
 
     top = cap.floor + cap.skirt
 
-    part = loft([_rtri(bore(0.0) + cap.wall, cap.corner + cap.wall, 0.0),
-                 _rtri(bore(top) + cap.wall, cap.corner + cap.wall, top)])
+    part = loft([_rtri(bore(0.0) + cap.wall, cap.bore_corner + cap.wall, 0.0),
+                 _rtri(bore(top) + cap.wall, cap.bore_corner + cap.wall, top)])
 
-    part -= loft([_rtri(bore(cap.floor), cap.corner, cap.floor),
-                  _rtri(bore(top), cap.corner, top)])
+    part -= loft([_rtri(bore(cap.floor), cap.bore_corner, cap.floor),
+                  _rtri(bore(top), cap.bore_corner, top)])
 
     ap = scope.r_face(0.0) - cap.lip_for(scope)
-    part -= extrude(_rtri(ap, cap.corner, -1.0), amount=cap.floor + 2.0)
+    part -= extrude(_rtri(ap, cap.ap_corner, -1.0), amount=cap.floor + 2.0)
 
     # One bump on the bottom flat, then rotated to the other two. Sketched in
     # the YZ plane, where local x is global Y (radially outward is -Y here)
@@ -107,22 +119,24 @@ def check(scope: Scope, cap: SmallCap, part, mesh) -> dict:
     # The bore's corners must clear the plates' outer points. Rounding pulls
     # the bore's corner in, so this goes negative if `corner` grows.
     for z, tag in ((0.0, "bottom"), (cap.skirt, "top")):
-        gap = (rounded_tri_reach(scope.r_outer(z) + cap.clearance, cap.corner)
+        gap = (rounded_tri_reach(scope.r_outer(z) + cap.clearance, cap.bore_corner)
                - scope.corner_reach(z))
         require(gap > 0.3, f"bore corner clearance {gap:+.2f} mm at the skirt {tag} "
-                           "— reduce SmallCap.corner")
+                           "— reduce SmallCap.bore_corner")
         facts[f"corner_{tag}"] = gap
 
     require(cap.clearance > 0, "bore has no clearance on the flats")
 
-    # The lip must catch the mirrors without eating the view.
+    # What holds the mirror is the floor under its END face, not the lip. Only
+    # a negative lip eats into that bearing.
     lip = cap.lip_for(scope)
-    require(lip >= scope.mirror / 2 - 1e-9,
-            f"lip {lip:.3f} mm is less than half a mirror thickness")
+    bearing = scope.mirror - max(0.0, -lip)
+    require(bearing > 0.8, f"only {bearing:.2f} mm of the mirror's end rests on "
+                           "the floor — the aperture has opened past it")
     require(lip < scope.mirror, f"lip {lip:.3f} mm covers the whole mirror edge")
-    facts["lip"] = lip
+    facts["lip"], facts["bearing"] = lip, bearing
     # a uniform inward offset pulls a triangle's vertices in by twice the offset
-    facts["corner_bite"] = 2 * lip + cap.corner
+    facts["corner_bite"] = 2 * lip + cap.ap_corner
 
     # The bump has to reach past the plates' outer face to engage at all.
     engage = cap.bump_h - cap.clearance
@@ -151,8 +165,9 @@ if __name__ == "__main__":
           f"{cap.clearance:.2f} mm on the flats")
     print(f"corners    clear by {facts['corner_bottom']:.2f} mm "
           f"(was 0.00 on the prototype's cap)")
-    print(f"aperture   lip {facts['lip']:.3f} mm = half a mirror; "
-          f"corners bite {facts['corner_bite']:.2f} mm")
+    print(f"aperture   lip {facts['lip']:.3f} mm on the flats, "
+          f"{facts['corner_bite']:.2f} mm at the corners; "
+          f"mirror bears on {facts['bearing']:.2f} mm of floor")
     print(f"detent     bump engages {facts['engage']:.2f} mm past the plate face")
     print(f"mesh       {len(mesh.faces)} faces, watertight, "
           f"{facts['unsupported']:.1f} mm2 unsupported, "

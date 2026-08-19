@@ -171,9 +171,18 @@ has to end up on the corner-block side of its plate.
 
 \smallskip
 
-\textbf{Width is forgiving.} __WINDOW__ across the narrow edge will seat, because the surplus
-buries itself behind the neighbouring mirror. Err generous and sand back. Sand only the cut
-edges, never the factory edge: 400-grit silicon carbide to take the burr off, 600 to finish.
+\textbf{Width is forgiving, and not in the way you would guess.} Each mirror is pushed until
+its leading edge stops against its neighbour, so \emph{that} edge lands on the vertex whatever
+the blank measures. Width only sets how much surplus buries itself behind the next mirror.
+__WINDOW__ across the narrow edge will seat. Too wide is the direction that fights you --- past
+the limit the surplus runs out of dead space and jams against the neighbouring plate. Too narrow
+only costs you: with no surplus left, the next mirror's leading edge has nothing to land on and
+the seam shows as a dark line. So if you are going to miss, miss narrow.
+
+\smallskip
+
+\textbf{Sanding.} Only the cut edges, never the factory edge: 400-grit silicon carbide to take
+the burr off, 600 to finish.
 }
 \end{document}
 """
@@ -185,8 +194,12 @@ def main():
     A, B, C, D = pts
     span, depth = D[0], max(p[1] for p in pts)
 
-    lo = scope.narrow_face + 0.05
-    hi = scope.narrow_face + scope.overlap_limit
+    # Against the AS-BUILT optical face, not the nominal one. The stock runs
+    # thicker than 1/16 in, so the face the mirrors actually form is 0.32 mm
+    # narrower than the design number and the whole window shifts with it.
+    face = scope.blank_width(0) - scope.mirror_overlap
+    lo = face + 0.05
+    hi = face + scope.overlap_limit
     dims = (rf"\textbf{{Blank:}} parallel edges \textbf{{{scope.blank_width(0):.2f}}} and "
             rf"\textbf{{{scope.blank_width(scope.length):.2f}\,mm}}, both slanted edges "
             rf"\textbf{{{scope.blank_leg:.2f}\,mm}}, height between the parallel edges "

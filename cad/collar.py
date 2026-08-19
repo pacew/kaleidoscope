@@ -10,15 +10,19 @@ touch on its leading rim and could rock. The bore's corners are relieved so it
 bears on the flats and squeezes the mitres shut, rather than riding on the
 plates' outer points and prising them apart.
 
-Three of them, because the mitres have no interlock of their own: the small
-cap holds the narrow end and each collar holds one station, and everything
-between is only as closed as the plates' own stiffness makes it. On the
-100 mm prototype a single collar left 17.8 mm of free end and one corner
-opened 1.2 mm; a 255 mm tube with one collar would leave ten times that.
+Two: one near the wide end at 225, one at mid-span at 112. The mid-span one was
+struck off after the first 255 mm build and then earned its way back on — with
+the tube squeezed by hand at mid-length the mitre faces shear against each other
+slightly, and a collar there stops it. It is a hoop, so it resists the cross
+section deforming directly, which is the motion that lets the faces move.
 
-They are different parts — each bore is sized for its own station. Fit them
-FURTHEST FIRST: a collar meant for the wide end has the largest bore and
-slides freely past the nearer stations, but not the other way round.
+A third, near the narrow end, cannot be fitted at all: its bore would be smaller
+than the small cap it has to pass over. That is a check now rather than a
+discovery.
+
+More stations are one entry in STATIONS away, but they must go on FURTHEST
+FIRST: a collar for the wide end has the largest bore and slides freely past
+the nearer stations, never the other way round.
 """
 
 from __future__ import annotations
@@ -32,9 +36,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build123d import Plane, RegularPolygon, fillet, loft
 
 from scope import Scope, rounded_tri_reach
+from small_cap import SmallCap
 from verify import emit, require, sits_on_bed, unsupported_area
 
-STATIONS = (55.0, 140.0, 225.0)
+STATIONS = (225.0, 112.0)
 
 
 @dataclass(frozen=True)
@@ -81,6 +86,18 @@ def check(scope: Scope, collar: Collar, part, mesh) -> dict:
                            "mitres open instead of closing them")
         facts[f"corner_{tag}"] = gap
 
+    # It has to slide over the small cap on its way to its station, and the cap
+    # is the fattest thing on the tube. The 55 mm collar failed exactly here.
+    cap = SmallCap()
+    cap_reach = rounded_tri_reach(
+        scope.r_outer(cap.skirt) + cap.clearance + cap.wall, cap.bore_corner + cap.wall)
+    bore_reach = rounded_tri_reach(scope.r_outer(collar.seat) + collar.grip, collar.corner)
+    require(bore_reach > cap_reach + 0.5,
+            f"bore reaches {bore_reach:.2f} mm but the small cap reaches "
+            f"{cap_reach:.2f} — this collar cannot pass over the cap, so it could "
+            "only be fitted before it, which makes assembly awkward")
+    facts["over_cap"] = bore_reach - cap_reach
+
     # A wedge trades positional accuracy for tolerance of size error, and the
     # gentler the taper the worse the trade. Harmless now that nothing has to
     # line up with the collar, but it means the printed position is a guess.
@@ -105,8 +122,10 @@ if __name__ == "__main__":
               f"bore {scope.r_outer(seat):.2f} -> "
               f"{scope.r_outer(seat + collar.length):.2f} mm inradius, "
               f"{f['across']:.1f} mm across, {part.volume / 1000:.2f} cm3")
-        print(f"{'':11}corners clear by {f['corner_mouth']:.2f} mm, "
-              f"{len(mesh.faces)} faces, watertight")
+        print(f"{'':11}corners clear by {f['corner_mouth']:.2f} mm, clears the cap by "
+              f"{f['over_cap']:.1f} mm, {len(mesh.faces)} faces, watertight")
+        print(f"{'':11}far edge nominally {scope.length - seat - collar.length:.2f} mm "
+              f"from the wide opening")
     print(f"\nseat drifts {f['drift']:.0f} mm per mm of radial size error, so treat "
           "the stations as nominal")
     print("fit them furthest first — the wide-end collar will not pass a nearer one")

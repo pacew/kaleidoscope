@@ -60,16 +60,26 @@ def bed_angle(part, bed=BED):
 
 @dataclass(frozen=True)
 class SidePlate:
-    detent_z: float = 8.0        # pocket centre, from the plates' narrow end
-    detent_clear: float = 1.0    # generous, so the cap snaps rather than jams
+    side_clear: float = 1.0      # lateral; nothing bears here, so stay generous
+    clear_low: float = 0.35      # THE wall that bears, and so the axial play
+    clear_high: float = 1.0      # never bears; generous, for an easy snap in
+    depth_clear: float = 1.0     # radial, into the plate
 
 
-def pocket_dims(plate: SidePlate, cap: SmallCap) -> tuple[float, float, float]:
-    """Width, length and depth of the detent pocket, derived from the cap's
-    bump so the two parts cannot drift apart."""
-    return (cap.bump_w + 2 * plate.detent_clear,
-            cap.bump_l + 2 * plate.detent_clear,
-            cap.bump_h + plate.detent_clear)
+def pocket_dims(plate: SidePlate, cap: SmallCap):
+    """Width, axial span and depth of the detent pocket, taken from the cap's
+    bump — including its position, so the two parts cannot drift apart.
+
+    The span is deliberately lopsided. The plate bottoms out on the cap's floor,
+    so the only direction it can move is back out, and that brings the pocket's
+    LOW wall up against the bump's flat underside. That wall alone sets the play.
+    The HIGH wall never bears, so it keeps a generous clearance to make the bump
+    easy to snap over on the way in.
+    """
+    w = cap.bump_w + 2 * plate.side_clear
+    lo = cap.detent_z - cap.bump_l / 2 - plate.clear_low
+    hi = cap.detent_z + cap.bump_l / 2 + plate.clear_high
+    return w, lo, hi, cap.bump_h + plate.depth_clear
 
 
 def profile(scope: Scope, z: float) -> list[tuple[float, float]]:
@@ -89,12 +99,12 @@ def build(scope: Scope, plate: SidePlate, cap: SmallCap):
     # Detent pocket, cut on a plane parallel to the outer face. Doing it here
     # rather than after the lay-flat keeps the position expressed in tube
     # stations, where it is the same number the cap uses.
-    w, l, d = pocket_dims(plate, cap)
+    w, lo, hi, d = pocket_dims(plate, cap)
     face = Plane(origin=(0, -scope.r_outer(0.0), 0),
                  x_dir=(1, 0, 0),
                  z_dir=Vector(0, -1, -scope.taper)).offset(1.0)
-    along = plate.detent_z * math.sqrt(1 + scope.taper**2)
-    part -= extrude(face * (Pos(0, along) * Rectangle(w, l)), amount=-(1.0 + d))
+    along = (lo + hi) / 2 * math.sqrt(1 + scope.taper**2)
+    part -= extrude(face * (Pos(0, along) * Rectangle(w, hi - lo)), amount=-(1.0 + d))
 
     # Lay the outer face on the bed. It is tilted from the axis by the taper,
     # so this is a rotation of (90 - taper) about X, not a flat 90.
@@ -136,7 +146,10 @@ def check(scope: Scope, plate: SidePlate, cap: SmallCap, part, mesh) -> dict:
             "and would foul the neighbouring plate")
     facts["overlap_limit"] = scope.overlap_limit
 
-    w, l, d = pocket_dims(plate, cap)
+    w, lo, hi, d = pocket_dims(plate, cap)
+    require(plate.clear_low > 0.1,
+            "the pocket's bearing wall has no clearance — the bump will not drop in")
+    facts["play"] = plate.clear_low
     require(d < scope.plate - 0.6, f"detent pocket {d:.2f} mm leaves too little "
                                    f"under it in a {scope.plate} mm plate")
     facts["pocket_depth"] = d
@@ -146,11 +159,12 @@ def check(scope: Scope, plate: SidePlate, cap: SmallCap, part, mesh) -> dict:
     # more than that and something is genuinely floating, so expect the exact
     # figure rather than picking a threshold.
     area, lowest = unsupported_area(mesh)
-    roof = w * l
+    roof = w * (hi - lo)
     require(area <= roof + 1.0,
             f"{area:.1f} mm2 unsupported, more than the {roof:.1f} mm2 detent "
             f"pocket roof -- something else is over air, lowest at z={lowest:.2f}")
-    facts["unsupported"], facts["roof"], facts["bridge"] = area, roof, min(w, l)
+    facts["unsupported"], facts["roof"] = area, roof
+    facts["bridge"] = min(w, hi - lo)
     return facts
 
 
@@ -168,8 +182,11 @@ if __name__ == "__main__":
     print(f"mirror     margin {f['margin_lead']:.2f} mm at the leading edge, "
           f"{f['margin_over']:.2f} mm at the overlap edge")
     print(f"           overlap {scope.mirror_overlap:.2f} of {f['overlap_limit']:.2f} mm allowed")
-    pw, pl, _ = pocket_dims(plate, cap)
-    print(f"detent     pocket {pw:.1f} x {pl:.1f} x {f['pocket_depth']:.1f} mm deep")
+    pw, plo, phi, _ = pocket_dims(plate, cap)
+    print(f"detent     pocket {pw:.1f} x {phi - plo:.2f} x {f['pocket_depth']:.1f} mm deep, "
+          f"spanning z {plo:.2f} to {phi:.2f}")
+    print(f"           {f['play']:.2f} mm of axial play, all of it at the low wall "
+          f"(was 1.00 nominal, 0.50 measured)")
     print(f"mesh       {len(mesh.faces)} faces, watertight, tessellation {tess:.1e}")
     print(f"           {f['unsupported']:.1f} mm2 over air = the pocket roof, "
           f"a {f['bridge']:.0f} mm bridge")

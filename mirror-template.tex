@@ -45,26 +45,26 @@ missing, your printer clipped the margins and everything here is short.}}
 \end{tikzpicture}
 
 \vspace{4mm}
-\hspace*{-4.67mm}\begin{tikzpicture}[x=1mm,y=1mm,line width=0.30mm]
-  \draw (1.3127,0.0000) -- (0.0000,26.3673) -- (254.1584,51.7359) -- (256.7340,0.0000) -- cycle;
-  \cmark{1.3127}{0.0000}
-  \cmark{0.0000}{26.3673}
-  \cmark{254.1584}{51.7359}
-  \cmark{256.7340}{0.0000}
-  \draw[fac,line width=0.7mm] (-4.00,0) -- (260.73,0);
+\hspace*{-4.65mm}\begin{tikzpicture}[x=1mm,y=1mm,line width=0.30mm]
+  \draw (1.2868,0.0000) -- (0.0000,25.8476) -- (254.1584,51.2161) -- (256.7081,0.0000) -- cycle;
+  \cmark{1.2868}{0.0000}
+  \cmark{0.0000}{25.8476}
+  \cmark{254.1584}{51.2161}
+  \cmark{256.7081}{0.0000}
+  \draw[fac,line width=0.7mm] (-4.00,0) -- (260.71,0);
   \foreach \x in {-2,2,...,260} { \draw[fac!40,line width=0.15mm] (\x,0) -- ({\x-3},-3.2); }
   \node[fac,font=\scriptsize\bfseries,below right] at (-4.00,-4.6) {FACTORY EDGE OF THE TILE — lay this line on it. Never cut or sand along it.};
   \node[reg,font=\scriptsize,below right] at (-4.00,-9.4) {Everything below the line hangs off the tile, which is how you sight the alignment.};
-  \node[font=\scriptsize,reg,rotate=5.70] at (127.08,42.45) {overlap edge — cut, buried behind the next mirror};
-  \node[font=\scriptsize,fac] at (129.02,3.4) {leading edge — factory, uncut, coating right to the edge};
-  \node[font=\scriptsize,reg,rotate=90] at (7.31,14) {narrow end};
-  \node[font=\scriptsize,reg,rotate=90] at (249.73,26) {wide end};
+  \node[font=\scriptsize,reg,rotate=5.70] at (127.08,41.93) {overlap edge — cut, buried behind the next mirror};
+  \node[font=\scriptsize,fac] at (129.00,3.4) {leading edge — factory, uncut, coating right to the edge};
+  \node[font=\scriptsize,reg,rotate=90] at (7.29,14) {narrow end};
+  \node[font=\scriptsize,reg,rotate=90] at (249.71,26) {wide end};
 \end{tikzpicture}
 \vspace{3mm}
 \hrule
 \vspace{1.5mm}
 {\footnotesize
-\textbf{Blank:} parallel edges \textbf{26.40} and \textbf{51.80\,mm}, both slanted edges \textbf{255.42\,mm}, height between the parallel edges \textbf{255.11\,mm}. Needs 256.7\,mm of factory edge against a 298.45\,mm tile, so one blank per edge --- three edges, or three tiles.
+\textbf{Blank:} parallel edges \textbf{25.88} and \textbf{51.28\,mm}, both slanted edges \textbf{255.42\,mm}, height between the parallel edges \textbf{255.11\,mm}. Needs 256.7\,mm of factory edge against a 298.45\,mm tile, so one blank per edge --- three edges, or three tiles.
 
 \smallskip
 
@@ -87,8 +87,17 @@ has to end up on the corner-block side of its plate.
 
 \smallskip
 
-\textbf{Width is forgiving.} Anything from 25.4 to 27.2\,mm across the narrow edge will seat, because the surplus
-buries itself behind the neighbouring mirror. Err generous and sand back. Sand only the cut
-edges, never the factory edge: 400-grit silicon carbide to take the burr off, 600 to finish.
+\textbf{Width is forgiving, and not in the way you would guess.} Each mirror is pushed until
+its leading edge stops against its neighbour, so \emph{that} edge lands on the vertex whatever
+the blank measures. Width only sets how much surplus buries itself behind the next mirror.
+Anything from 25.1 to 27.0\,mm across the narrow edge will seat. Too wide is the direction that fights you --- past
+the limit the surplus runs out of dead space and jams against the neighbouring plate. Too narrow
+only costs you: with no surplus left, the next mirror's leading edge has nothing to land on and
+the seam shows as a dark line. So if you are going to miss, miss narrow.
+
+\smallskip
+
+\textbf{Sanding.} Only the cut edges, never the factory edge: 400-grit silicon carbide to take
+the burr off, 600 to finish.
 }
 \end{document}
