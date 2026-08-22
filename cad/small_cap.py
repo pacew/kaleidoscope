@@ -38,6 +38,7 @@ from build123d import (Plane, Polygon, RegularPolygon, Rot, extrude, fillet,
                        loft)
 
 from scope import Scope, rounded_tri_area, rounded_tri_reach
+from shapes import fin, rtri as _rtri
 from verify import emit, require, sits_on_bed, unsupported_area
 
 
@@ -68,14 +69,6 @@ class SmallCap:
         return self.lip
 
 
-def _rtri(inradius: float, corner: float, z: float):
-    """A rounded equilateral triangle on the plane z, clocked with vertices at
-    90/210/330 to match the tube."""
-    sk = RegularPolygon(radius=2 * inradius, side_count=3,
-                        major_radius=True, rotation=90)
-    return Plane.XY.offset(z) * fillet(sk.vertices(), corner)
-
-
 def build(scope: Scope, cap: SmallCap):
     # Floor occupies z 0..floor; the skirt sits above it, so a point at cap
     # height h is over tube station h - floor.
@@ -103,8 +96,7 @@ def build(scope: Scope, cap: SmallCap):
            (-r + cap.bump_h, h0),             # flat bottom: the retaining face
            (-r + cap.bump_h, h1),
            (-r - 1.0, h1 + cap.ramp * cap.bump_h)]   # ramped top: the lead-in
-    bump = extrude(Plane.YZ.offset(-cap.bump_w / 2) * Polygon(*pts, align=None),
-                   amount=cap.bump_w)
+    bump = fin(pts, cap.bump_w)
     part = part + bump + Rot(0, 0, 120) * bump + Rot(0, 0, 240) * bump
     return part
 

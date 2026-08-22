@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build123d import Plane, RegularPolygon, fillet, loft
 
 from scope import Scope, rounded_tri_reach
+from shapes import rtri as _rtri
 from small_cap import SmallCap
 from verify import emit, require, sits_on_bed, unsupported_area
 
@@ -49,12 +50,6 @@ class Collar:
     wall: float = 2.5
     corner: float = 0.4         # keep well under 1.5 * miter_land
     grip: float = 0.0           # radial clearance; 0 is a pure wedge
-
-
-def _rtri(inradius: float, corner: float, z: float):
-    sk = RegularPolygon(radius=2 * inradius, side_count=3,
-                        major_radius=True, rotation=90)
-    return Plane.XY.offset(z) * fillet(sk.vertices(), corner)
 
 
 def build(scope: Scope, collar: Collar):
