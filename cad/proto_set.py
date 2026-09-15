@@ -85,7 +85,10 @@ if __name__ == "__main__":
     print(f"           overlap {scope.mirror_overlap:.2f} of "
           f"{scope.overlap_limit:.2f} mm allowed")
 
-    cap = SmallCap()
+    # Band notches on: this scope's only collar sits at 74, which leaves 2.67 mm
+    # on the flats, and the large cap is held on by rubber bands rather than by
+    # snap arms.
+    cap = SmallCap(tab_out=2.0)
     part = build_cap(scope, cap)
     stl, step, mesh, tess = emit(part, "proto_small_cap")
     f = check_cap(scope, cap, part, mesh)
@@ -96,6 +99,8 @@ if __name__ == "__main__":
           f"clear by {f['corner_bottom']:.2f}")
     print(f"           lip {f['lip']:.3f} mm on the flats, {f['corner_bite']:.2f} at "
           f"the corners, mirror bears on {f['bearing']:.2f} mm of floor")
+    print(f"           6 band notches {f['tab_depth']:.1f} mm deep x {cap.tab_z:.1f} tall, "
+          f"standing {f['tab_reach']:.2f} mm from the axis")
     print(f"           {len(mesh.faces)} faces, watertight -> {stl}")
 
     plate = SidePlate()
@@ -119,11 +124,11 @@ if __name__ == "__main__":
     collar = Collar(seat=COLLAR_SEAT)
     part = build_collar(scope, collar)
     stl, step, mesh, tess = emit(part, f"proto_collar_{COLLAR_SEAT:.0f}")
-    f = check_collar(scope, collar, part, mesh)
+    f = check_collar(scope, collar, part, mesh, cap)
     print(f"\ncollar     seat {COLLAR_SEAT:.0f}-{COLLAR_SEAT + collar.length:.0f} mm, "
           f"{f['across']:.1f} mm across, {part.volume / 1000:.2f} cm3")
     print(f"           corners clear by {f['corner_mouth']:.2f} mm, clears the cap "
-          f"by {f['over_cap']:.1f} mm")
+          f"by {f['over_cap']:.1f} mm, its band notches by {f['over_tabs']:.2f} mm")
     print(f"           far edge {scope.length - COLLAR_SEAT - collar.length:.1f} mm "
           f"from the wide opening, seat drifts {f['drift']:.0f} mm per mm")
     print(f"           {len(mesh.faces)} faces, watertight -> {stl}")

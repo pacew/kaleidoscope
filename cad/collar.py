@@ -64,7 +64,7 @@ def build(scope: Scope, collar: Collar):
     return part
 
 
-def check(scope: Scope, collar: Collar, part, mesh) -> dict:
+def check(scope: Scope, collar: Collar, part, mesh, cap: SmallCap = None) -> dict:
     facts = {}
     bb = sits_on_bed(part)
     facts["across"] = bb.max.X - bb.min.X
@@ -83,7 +83,7 @@ def check(scope: Scope, collar: Collar, part, mesh) -> dict:
 
     # It has to slide over the small cap on its way to its station, and the cap
     # is the fattest thing on the tube. The 55 mm collar failed exactly here.
-    cap = SmallCap()
+    cap = cap or SmallCap()
     cap_reach = rounded_tri_reach(
         scope.r_outer(cap.skirt) + cap.clearance + cap.wall, cap.bore_corner + cap.wall)
     bore_reach = rounded_tri_reach(scope.r_outer(collar.seat) + collar.grip, collar.corner)
@@ -92,6 +92,17 @@ def check(scope: Scope, collar: Collar, part, mesh) -> dict:
             f"{cap_reach:.2f} — this collar cannot pass over the cap, so it could "
             "only be fitted before it, which makes assembly awkward")
     facts["over_cap"] = bore_reach - cap_reach
+
+    # If the cap carries band notches they stand proud of its wall on the
+    # FLATS, which is a different and usually tighter constraint than the
+    # corners checked above.
+    if cap.tab_out > 0:
+        room = (scope.r_outer(collar.seat) + collar.grip) - cap.tab_reach(scope)
+        require(room > 0.3,
+                f"bore clears the cap's band notches by only {room:+.2f} mm on the "
+                f"flats — this collar cannot be threaded past them. Shorten "
+                f"SmallCap.tab_out, or move the collar toward the wide end.")
+        facts["over_tabs"] = room
 
     # A wedge trades positional accuracy for tolerance of size error, and the
     # gentler the taper the worse the trade. Harmless now that nothing has to
@@ -112,7 +123,7 @@ if __name__ == "__main__":
         part = build(scope, collar)
         name = f"collar_{seat:.0f}"
         stl, step, mesh, tess = emit(part, name)
-        f = check(scope, collar, part, mesh)
+        f = check(scope, collar, part, mesh, SmallCap())
         print(f"{name}  seat {seat:.0f}-{seat + collar.length:.0f} mm, "
               f"bore {scope.r_outer(seat):.2f} -> "
               f"{scope.r_outer(seat + collar.length):.2f} mm inradius, "

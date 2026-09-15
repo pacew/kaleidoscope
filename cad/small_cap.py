@@ -38,7 +38,7 @@ from build123d import (Plane, Polygon, RegularPolygon, Rot, extrude, fillet,
                        loft)
 
 from scope import Scope, rounded_tri_area, rounded_tri_reach
-from shapes import fin, rtri as _rtri
+from shapes import band_tab, fin, rtri as _rtri, straight_run, tab_offsets
 from verify import emit, require, sits_on_bed, unsupported_area
 
 
@@ -57,13 +57,37 @@ class SmallCap:
     ap_corner: float = 0.3     # separate from the bore's, and as sharp as the
     #                            nozzle manages: it lands in the object field,
     #                            where it costs twice the lip does at a corner
-    lip: float = 0.294         # how far the floor reaches inboard of the
-    #                            mirror face. Purely cosmetic -- see above.
+    lip: float = 0.10          # how far the floor reaches inboard of the
+    #                            mirror face. Purely cosmetic -- see above --
+    #                            so it is set by what you can see, and at a
+    #                            corner you see TWICE this plus ap_corner.
+    #                            0.294 read as a visible outline round every
+    #                            triangle; this halves the corner bite.
     detent_z: float = 8.0      # from the plates' narrow end
     bump_w: float = 6.0
     bump_l: float = 3.0
     bump_h: float = 0.8
     ramp: float = 1.6          # lead-in length, in multiples of bump_h
+    # Rubber-band notches. OFF by default: they stand proud of the wall, and a
+    # collar seated anywhere near mid-span has to slide over the whole cap to
+    # reach its station. On the 255 mm tube the 112 collar leaves 0.53 mm, which
+    # is not a tab. Turn them on per scope, and collar.check() enforces it.
+    tab_out: float = 0.0       # 0 = no notches
+    tab_from_vertex: float = 10.0
+    tab_w: float = 6.0
+    tab_col: float = 1.2
+    tab_z: float = 2.0
+    tab_t: float = 1.5
+    tab_bury: float = 1.0      # buys notch depth without standing further out
+
+    def shell(self, scope: Scope, z: float = 0.0) -> float:
+        """Outside of the cap at cap-height z."""
+        return scope.r_outer(z - self.floor) + self.clearance + self.wall
+
+    def tab_reach(self, scope: Scope) -> float:
+        """How far the notches stand from the axis, on the flats. This is what
+        a collar has to clear, not the wall."""
+        return self.shell(scope, self.tab_z + self.tab_t) + self.tab_out
 
     def lip_for(self, scope: Scope) -> float:
         return self.lip
@@ -97,7 +121,14 @@ def build(scope: Scope, cap: SmallCap):
            (-r + cap.bump_h, h1),
            (-r - 1.0, h1 + cap.ramp * cap.bump_h)]   # ramped top: the lead-in
     bump = fin(pts, cap.bump_w)
-    part = part + bump + Rot(0, 0, 120) * bump + Rot(0, 0, 240) * bump
+    face = bump
+    if cap.tab_out > 0:
+        r = cap.shell(scope, 0.0)
+        for x in tab_offsets(r, cap.tab_from_vertex):
+            face += band_tab(r, x, cap.tab_w, cap.tab_out, cap.tab_col,
+                             cap.tab_z, cap.tab_t, cap.tab_bury)
+
+    part = part + face + Rot(0, 0, 120) * face + Rot(0, 0, 240) * face
     return part
 
 
@@ -136,9 +167,24 @@ def check(scope: Scope, cap: SmallCap, part, mesh) -> dict:
     require(engage < scope.plate, "bump would punch through the plate")
     facts["engage"] = engage
 
+    if cap.tab_out > 0:
+        r = cap.shell(scope, 0.0)
+        edge = abs(tab_offsets(r, cap.tab_from_vertex)[1]) + cap.tab_w / 2
+        run = straight_run(r, cap.bore_corner + cap.wall)
+        require(edge < run - 1.0,
+                f"band notch reaches {edge:.1f} mm along a flat straight only to "
+                f"{run:.1f} — it would sit on the corner fillet")
+        require(cap.tab_out - cap.tab_col + cap.tab_bury > 1.2,
+                "band notch too shallow to hold a band")
+        facts["tab_edge"], facts["tab_run"] = edge, run
+        facts["tab_depth"] = cap.tab_out - cap.tab_col + cap.tab_bury
+        facts["tab_reach"] = cap.tab_reach(scope)
+
     area, lowest = unsupported_area(mesh)
-    require(area < 30.0, f"{area:.1f} mm2 of downward-facing area above the bed, "
-                         f"lowest at z={lowest:.2f} — something is printing over air")
+    tabs = 3 * 2 * (cap.tab_out - cap.tab_col + cap.tab_bury) * cap.tab_w if cap.tab_out else 0.0
+    require(area < 30.0 + tabs,
+            f"{area:.1f} mm2 of downward-facing area above the bed against a "
+            f"{30.0 + tabs:.1f} mm2 budget, lowest at z={lowest:.2f}")
     facts["unsupported"] = area
     return facts
 
@@ -161,6 +207,11 @@ if __name__ == "__main__":
           f"{facts['corner_bite']:.2f} mm at the corners; "
           f"mirror bears on {facts['bearing']:.2f} mm of floor")
     print(f"detent     bump engages {facts['engage']:.2f} mm past the plate face")
+    if cap.tab_out > 0:
+        print(f"bands      6 notches {facts['tab_depth']:.1f} mm deep x {cap.tab_z:.1f} tall, "
+              f"reaching {facts['tab_edge']:.1f} of {facts['tab_run']:.1f} mm of straight flat")
+        print(f"           standing {facts['tab_reach']:.2f} mm from the axis — a collar "
+              f"must clear THIS, not the wall")
     print(f"mesh       {len(mesh.faces)} faces, watertight, "
           f"{facts['unsupported']:.1f} mm2 unsupported, "
           f"tessellation {tess:.1e}")
